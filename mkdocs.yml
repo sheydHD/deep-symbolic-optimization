@@ -1,0 +1,53 @@
+site_name: Deep Symbolic Optimization
+site_url: https://your-org.github.io/dso
+repo_url: https://github.com/your-org/dso
+repo_name: your-org/dso
+
+docs_dir: docs
+site_dir: site
+
+nav:
+  - Home: index.md
+  - Overview: docs/overview.md
+  - Guides:
+      - Installation: docs/guides/installation.md
+      - Getting Started: docs/guides/getting_started.md
+  - Architecture: docs/architecture/overview.md
+  - Reference: docs/reference/api_reference.md
+  - Operations:
+      - Release Process: docs/operations/release_process.md
+  - Rules:
+      - Code Style: docs/rules/code_style.md
+      - Testing: docs/rules/testing_rules.md
+      - Git Rules: docs/rules/git_rules.md
+      - Branching Model: docs/rules/branching_model.md
+      - Docs Rules: docs/rules/docs_rules.md
+  - Legal:
+      - Code of Conduct: docs/legal/CODE_OF_CONDUCT.md
+      - Security Policy: docs/legal/SECURITY.md
+
+theme:
+  name: material
+  logo: images/banner.png
+  favicon: images/banner.png
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - content.code.copy
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          setup_commands:
+            - import sys, os; sys.path.append(os.getcwd())
+          options:
+            show_source: true
+  - markdownextradata
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - toc:
+      permalink: true
