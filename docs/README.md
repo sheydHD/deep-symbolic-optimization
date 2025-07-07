@@ -44,7 +44,13 @@ Each sub-directory contains its own `README.md` to aid discoverability (except w
 ## Building Docs Locally
 
 ```bash
-uv pip run mkdocs serve  # Live-reload at http://127.0.0.1:8000/
+uv run mkdocs serve  # Live-reload at http://127.0.0.1:8000/
+```
+
+If MkDocs isn't installed yet, run:
+
+```bash
+uv pip install mkdocs-material mkdocstrings[python]
 ```
 
 ---
