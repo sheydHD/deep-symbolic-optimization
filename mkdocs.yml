@@ -7,7 +7,7 @@ docs_dir: docs
 site_dir: site
 
 nav:
-  - Home: index.md
+  - Home: README.md
   - Overview: overview.md
   - Guides:
       - Installation: guides/installation.md
@@ -57,4 +57,3 @@ markdown_extensions:
       permalink: true
 
 exclude:
-  - todo/modernization_plan.md
