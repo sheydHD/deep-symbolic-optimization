@@ -27,4 +27,4 @@
 
 ## 5. Vulnerability Disclosure
 
-- Follow `SECURITY.md`; contact maintainers via security@dso.example.com.
+<!-- - Follow `SECURITY.md`; contact maintainers via security@dso.example.com. -->

@@ -49,4 +49,6 @@ graph TD;
 
 ## ADRs
 
-Design decisions are tracked in [`architecture/adr`](adr/).
+Design decisions are tracked in the [ADR directory](adr/ADR-0000-template.md) where each decision record lives.
+
+See [`ADR Template`](adr/ADR-0000-template.md) for the decision record format.

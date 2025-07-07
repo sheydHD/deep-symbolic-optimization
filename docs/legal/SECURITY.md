@@ -2,7 +2,7 @@
 
 ## Reporting a Vulnerability
 
-Please email **security@dso.example.com** with details. We aim to respond within **72 hours**.
+<!-- Please email **security@dso.example.com** with details. We aim to respond within **72 hours**. -->
 
 - Do not open public issues for potential vulnerabilities.
 - Include steps to reproduce and any relevant logs.

@@ -1,3 +1,7 @@
+---
+draft: true
+---
+
 # Deep Symbolic Optimization – Modernization Roadmap
 
 > Purpose: Bring the repository up-to-date with the modern Python (3.11+) scientific stack, replace deprecated libraries, and improve overall code quality, testing, and maintainability.

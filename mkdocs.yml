@@ -12,19 +12,25 @@ nav:
   - Guides:
       - Installation: guides/installation.md
       - Getting Started: guides/getting_started.md
-  - Architecture: architecture/overview.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - ADR Template: architecture/adr/ADR-0000-template.md
   - Reference: reference/api_reference.md
   - Operations:
       - Release Process: operations/release_process.md
   - Rules:
       - Code Style: rules/code_style.md
-      - Testing: rules/testing_rules.md
+      - Testing Rules: rules/testing_rules.md
       - Git Rules: rules/git_rules.md
       - Branching Model: rules/branching_model.md
       - Docs Rules: rules/docs_rules.md
+      - PR Review Rules: rules/pr_review_rules.md
+      - Project Structure: rules/project_structure.md
+      - Security Rules: rules/security_rules.md
   - Legal:
       - Code of Conduct: legal/CODE_OF_CONDUCT.md
       - Security Policy: legal/SECURITY.md
+  - Roadmap: todo/modernization_plan.md
 
 theme:
   name: material
@@ -49,3 +55,6 @@ markdown_extensions:
   - codehilite
   - toc:
       permalink: true
+
+exclude:
+  - todo/modernization_plan.md

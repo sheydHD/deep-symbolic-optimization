@@ -24,7 +24,7 @@ This site follows an industry-standard hierarchy that separates _guides_, _tutor
 
 ## Navigation
 
-```
+```bash
 /docs
 ├── README.md                # You are here
 ├── overview.md              # Product summary & scope
