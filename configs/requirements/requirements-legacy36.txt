@@ -1,0 +1,21 @@
+# Legacy environment for Python 3.6 compatibility
+# Pin versions known to work with TensorFlow 1.14 stack
+
+tensorflow==1.14
+numpy==1.19.5
+pandas<1.1
+scikit-learn<0.24
+sympy<1.7
+numba==0.53.1
+cython<0.29.33
+commentjson==0.9.0
+prettytable==0.7.2
+click==7.1.2
+tqdm<4.40
+pathos==0.2.5
+deap==1.3.1
+# RL extras
+mpi4py==3.0.3
+gym[box2d]==0.15.4
+stable-baselines[mpi]==2.10.0
+pybullet==2.5.0 
