@@ -7,6 +7,7 @@
 - Python **3.10** or **3.11** (check with `python --version`).
 - GCC / Clang toolchain for Cython extensions.
 - (Optional) CUDA-enabled GPU for acceleration.
+- **uv package manager** – install once via `pipx install uv` (or `pip install --upgrade uv`).
 
 ## Quick Install
 
