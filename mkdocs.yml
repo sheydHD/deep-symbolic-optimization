@@ -12,6 +12,7 @@ nav:
   - Guides:
       - Installation: guides/installation.md
       - Getting Started: guides/getting_started.md
+      - Legacy Compatibility (Py 3.6 / TF 1.14): guides/legacy_setup.md
   - Architecture:
       - Overview: architecture/overview.md
       - ADR Template: architecture/adr/ADR-0000-template.md

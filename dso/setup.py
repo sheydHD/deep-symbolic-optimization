@@ -38,6 +38,8 @@ extras = {
 }
 extras['all'] = list(set([item for group in extras.values() for item in group]))
 
+extras['legacy36'] = [ln.strip() for ln in open(os.path.join(os.path.dirname(__file__), '..', 'configs', 'requirements', 'requirements-legacy36.txt')).read().splitlines() if ln.strip() and not ln.startswith('#')]
+
 setup(  name='dso',
         version='1.0dev',
         description='Deep symbolic optimization.',
