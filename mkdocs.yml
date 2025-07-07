@@ -27,6 +27,7 @@ nav:
       - PR Review Rules: rules/pr_review_rules.md
       - Project Structure: rules/project_structure.md
       - Security Rules: rules/security_rules.md
+      - Rules Overview: rules/README.md
   - Legal:
       - Code of Conduct: legal/CODE_OF_CONDUCT.md
       - Security Policy: legal/SECURITY.md
@@ -34,8 +35,8 @@ nav:
 
 theme:
   name: material
-  logo: images/banner.png
-  favicon: images/banner.png
+  logo: attachments/images/banner.png
+  favicon: attachments/images/banner.png
   icon:
     repo: fontawesome/brands/github
   features:
@@ -55,5 +56,3 @@ markdown_extensions:
   - codehilite
   - toc:
       permalink: true
-
-exclude:

@@ -1,6 +1,10 @@
-# DSO Documentation Hub
+# Deep Symbolic Optimization Documentation
 
 > Version: 1.0 • Last updated: 2025-07-07
+
+<p align="center">
+<img src="attachments/images/banner.png" width=750/>
+</p>
 
 Welcome to the **Deep Symbolic Optimization (DSO)** documentation hub.
 This site follows an industry-standard hierarchy that separates _guides_, _tutorials_, _reference_, and _design_ documents to serve both new users and core developers.
@@ -55,4 +59,4 @@ uv pip install mkdocs-material mkdocstrings[python]
 
 ---
 
-For contribution guidelines, see [`docs/rules`](rules/).
+For contribution guidelines, see the [Rules overview](rules/README.md).
