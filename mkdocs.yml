@@ -8,23 +8,23 @@ site_dir: site
 
 nav:
   - Home: index.md
-  - Overview: docs/overview.md
+  - Overview: overview.md
   - Guides:
-      - Installation: docs/guides/installation.md
-      - Getting Started: docs/guides/getting_started.md
-  - Architecture: docs/architecture/overview.md
-  - Reference: docs/reference/api_reference.md
+      - Installation: guides/installation.md
+      - Getting Started: guides/getting_started.md
+  - Architecture: architecture/overview.md
+  - Reference: reference/api_reference.md
   - Operations:
-      - Release Process: docs/operations/release_process.md
+      - Release Process: operations/release_process.md
   - Rules:
-      - Code Style: docs/rules/code_style.md
-      - Testing: docs/rules/testing_rules.md
-      - Git Rules: docs/rules/git_rules.md
-      - Branching Model: docs/rules/branching_model.md
-      - Docs Rules: docs/rules/docs_rules.md
+      - Code Style: rules/code_style.md
+      - Testing: rules/testing_rules.md
+      - Git Rules: rules/git_rules.md
+      - Branching Model: rules/branching_model.md
+      - Docs Rules: rules/docs_rules.md
   - Legal:
-      - Code of Conduct: docs/legal/CODE_OF_CONDUCT.md
-      - Security Policy: docs/legal/SECURITY.md
+      - Code of Conduct: legal/CODE_OF_CONDUCT.md
+      - Security Policy: legal/SECURITY.md
 
 theme:
   name: material
@@ -40,8 +40,6 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
-          setup_commands:
-            - import sys, os; sys.path.append(os.getcwd())
           options:
             show_source: true
   - markdownextradata
