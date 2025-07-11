@@ -48,6 +48,8 @@ export CFLAGS="-I $(python -c "import numpy; print(numpy.get_include())") $CFLAG
 pip install -e ./dso # Install DSO package and core dependencies
 ```
 
+> **Note:** For legacy Python 3.6 + TensorFlow 1.14 compatibility, please see the [Legacy Compatibility Guide](docs/guides/legacy_setup.md) which provides detailed instructions for creating an isolated environment for reproducing older experiments.
+
 The `regression` task is installed by default. It doesn't require any of the installation options below.
 
 ### Installation - `control` task

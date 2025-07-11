@@ -1,9 +1,10 @@
 # Directories and files Cursor should ignore during analysis
-.venv/
+.venv
+venv
 site/
 __pycache__/
 .mypy_cache/
-.pytest_cache/
+.pytest_cache
 .idea/
 .vscode/
 build
