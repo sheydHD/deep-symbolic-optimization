@@ -1,7 +1,8 @@
 site_name: Deep Symbolic Optimization
 site_url: https://your-org.github.io/dso
-repo_url: https://github.com/your-org/dso
-repo_name: your-org/dso
+repo_url: https://github.com/sheydHD/deep-symbolic-optimization
+repo_name: sheydHD/deep-symbolic-optimization
+edit_uri: edit/modernize-2025/docs/
 
 docs_dir: docs
 site_dir: site
@@ -15,7 +16,6 @@ nav:
       - Legacy Compatibility (Py 3.6 / TF 1.14): guides/legacy_setup.md
   - Architecture:
       - Overview: architecture/overview.md
-      - ADR Template: architecture/adr/ADR-0000-template.md
   - Reference: reference/api_reference.md
   - Operations:
       - Release Process: operations/release_process.md
@@ -32,7 +32,9 @@ nav:
   - Legal:
       - Code of Conduct: legal/CODE_OF_CONDUCT.md
       - Security Policy: legal/SECURITY.md
-  - Roadmap: todo/modernization_plan.md
+  - Roadmap:
+      - Modernization Plan: todo/modernization_plan.md
+      - Modernization Roadmap: todo/modernization_roadmap.md
 
 theme:
   name: material
@@ -42,6 +44,21 @@ theme:
     repo: fontawesome/brands/github
   features:
     - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
 
 plugins:
   - search
@@ -57,3 +74,14 @@ markdown_extensions:
   - codehilite
   - toc:
       permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/sheydHD/deep-symbolic-optimization/tree/modernize-2025

@@ -46,9 +46,3 @@ graph TD;
 3. **Evaluation** – Candidates are scored by the Task/Evaluator.
 4. **Update** – Trainer computes gradients / GP updates.
 5. **Checkpoint** – Best program & metrics saved periodically.
-
-## ADRs
-
-Design decisions are tracked in the [ADR directory](adr/ADR-0000-template.md) where each decision record lives.
-
-See [`ADR Template`](adr/ADR-0000-template.md) for the decision record format.
