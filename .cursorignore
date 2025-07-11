@@ -1,7 +1,11 @@
 # Directories and files Cursor should ignore during analysis
 .venv
 venv
-site/
+.venv_36
+.cache
+log
+site
+dso.egg-info
 __pycache__/
 .mypy_cache/
 .pytest_cache
