@@ -46,7 +46,7 @@ if "%PROFILE%"=="full" (
     set "REQ_FILE=configs\requirements\base_legacy_all.txt"
     set "EXTRA=[all]"
 ) else (
-    set "REQ_FILE=configs\requirements\base_legacy_regression.txt"
+    set "REQ_FILE=configs\requirements\base_legacy.txt"
     set "EXTRA=[regression]"
 )
 

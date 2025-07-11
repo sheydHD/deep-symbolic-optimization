@@ -70,7 +70,7 @@ create_venv() {
 install_dependencies() {
   local REQUIREMENTS_FILE
   case "$INSTALL_PROFILE" in
-    regression) REQUIREMENTS_FILE="configs/requirements/base_legacy_regression.txt" ;;
+    regression) REQUIREMENTS_FILE="configs/requirements/base_legacy.txt" ;;
     full)       REQUIREMENTS_FILE="configs/requirements/base_legacy_all.txt" ;;
     *)          log_error "Unknown profile: $INSTALL_PROFILE"; exit 1 ;;
   esac

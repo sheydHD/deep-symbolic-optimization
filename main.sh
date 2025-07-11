@@ -11,5 +11,5 @@ if [ ! -f "$CLI_PATH" ]; then
   echo "Error: CLI script not found at $CLI_PATH" >&2
   exit 1
 fi
-
 bash "$CLI_PATH" "$@"
+
