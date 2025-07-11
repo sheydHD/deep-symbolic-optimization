@@ -36,9 +36,8 @@ extras = {
     ],
     "regression": []
 }
-extras['all'] = list(set([item for group in extras.values() for item in group]))
-
-extras['legacy36'] = [ln.strip() for ln in open(os.path.join(os.path.dirname(__file__), '..', 'configs', 'requirements', 'requirements-legacy36.txt')).read().splitlines() if ln.strip() and not ln.startswith('#')]
+# Convenience extra that bundles everything
+extras["all"] = list({pkg for group in extras.values() for pkg in group})
 
 setup(  name='dso',
         version='1.0dev',
