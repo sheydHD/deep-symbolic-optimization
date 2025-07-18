@@ -1,4 +1,4 @@
-import gym
+import gymnasium as gym
 import dso.task.control
 import numpy as np
 

@@ -31,42 +31,16 @@ This repository contains code supporting the following publications:
 
 # Installation
 
-### Installation - Core package
+1. Clone the repo:  
+   `git clone https://github.com/your-org/dso.git && cd dso`
 
-The core package has been tested on Python3.6+ on Unix and OSX. To install the core package (and the default `regression` task), we highly recommend first creating a Python 3 virtual environment, e.g.,
+2. Run setup:  
+   `./main.sh` (press `1` when prompted)
 
-```
-python3 -m venv venv3 # Create a Python 3 virtual environment
-source venv3/bin/activate # Activate the virtual environment
-```
+3. Activate environment:  
+   `source .venv/bin/activate`
 
-Then, from the repository root:
-
-```
-pip install --upgrade setuptools pip
-export CFLAGS="-I $(python -c "import numpy; print(numpy.get_include())") $CFLAGS" # Needed on Mac to prevent fatal error: 'numpy/arrayobject.h' file not found
-pip install -e ./dso # Install DSO package and core dependencies
-```
-
-> **Note:** For legacy Python 3.6 + TensorFlow 1.14 compatibility, please see the [Legacy Compatibility Guide](docs/guides/legacy_setup.md) which provides detailed instructions for creating an isolated environment for reproducing older experiments.
-
-The `regression` task is installed by default. It doesn't require any of the installation options below.
-
-### Installation - `control` task
-
-There are a few additional dependencies to run the `control` task. Install them using:
-
-```
-pip install -e ./dso[control]
-```
-
-### Installation - all tasks
-
-To install all dependencies for all tasks, use the `all` option:
-
-```
-pip install -e ./dso[all]
-```
+That's it! You're ready to use DSO.
 
 # Getting started
 

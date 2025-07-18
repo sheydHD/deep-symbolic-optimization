@@ -1,4 +1,3 @@
-
 import tensorflow as tf
 from dso.policy_optimizer import PolicyOptimizer
 from dso.policy import Policy
@@ -22,11 +21,12 @@ class PQTPolicyOptimizer(PolicyOptimizer):
         Use policy gradient loss when using PQT?   
         
     """
-    def __init__(self, 
-            sess : tf.Session,
+    def __init__(self,
+            sess : tf.compat.v1.Session,
             policy : Policy,
-            debug : int = 0, 
+            debug : int = 0,
             summary : bool = False,
+            logdir : str = None,
             # Optimizer hyperparameters
             optimizer : str = 'adam',
             learning_rate : float = 0.001,
@@ -36,17 +36,21 @@ class PQTPolicyOptimizer(PolicyOptimizer):
             # PQT hyperparameters
             pqt_k : int = 10,
             pqt_batch_size : int = 1,
-            pqt_weight : float = 200.0,
-            pqt_use_pg: bool = False) -> None:
+            pqt_weight : float = 0.1,
+            pqt_use_pg : bool = False,
+            pqt_mix_with_top : bool = True) -> None:
+        # We use a priority queue to store the top k elements
         self.pqt_k = pqt_k
         self.pqt_batch_size = pqt_batch_size
         self.pqt_weight = pqt_weight
-        self. pqt_use_pg = pqt_use_pg
-        super()._setup_policy_optimizer(sess, policy, debug, summary, optimizer, learning_rate, entropy_weight, entropy_gamma)
+        self.pqt_use_pg = pqt_use_pg
+        self.pqt_mix_with_top = pqt_mix_with_top
+        
+        super()._setup_policy_optimizer(sess, policy, debug, summary, logdir, optimizer, learning_rate, entropy_weight, entropy_gamma)
 
 
     def _set_loss(self):
-        with tf.name_scope("losses"):
+        with tf.compat.v1.name_scope("losses"):
             # Create placeholder for PQT batch
             self.pqt_batch_ph = make_batch_ph("pqt_batch", self.n_choices) #self.n_choices is defined in parent class
 
@@ -57,12 +61,13 @@ class PQTPolicyOptimizer(PolicyOptimizer):
             self.loss += self.pqt_loss
 
 
-    def _preppend_to_summary(self):
-        with tf.name_scope("summary"):
-            tf.summary.scalar("pqt_loss", self.pqt_loss)
+    def _preppend_to_summary(self, iteration):
+        with self.writer.as_default():
+            tf.summary.scalar("pqt_loss", self.pqt_loss, step=iteration)
 
 
     def train_step(self, baseline, sampled_batch, pqt_batch):
+        self.iterations.assign_add(1) # Increment iteration counter
         feed_dict = {
             self.baseline : baseline,
             self.sampled_batch_ph : sampled_batch
@@ -71,6 +76,6 @@ class PQTPolicyOptimizer(PolicyOptimizer):
                 self.pqt_batch_ph : pqt_batch
         })
 
-        summaries, _ = self.sess.run([self.summaries, self.train_op], feed_dict=feed_dict)
+        _ = self.sess.run(self.train_op, feed_dict=feed_dict)
 
-        return summaries
+        return None

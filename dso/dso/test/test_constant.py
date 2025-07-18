@@ -12,7 +12,7 @@ def test_constant():
     valid_cases = np.arange(0, 25, 0.1)
     for number in valid_cases:
         const = HardCodedConstant(value=number)
-        assert const() == number, "Value returned from Constant.function() ({}) does not match input value ({}).".format(const(), number)
+        assert const() == number, f"Value returned from Constant.function() ({const()}) does not match input value ({number})."
 
 def test_regression_with_hard_coded_constants(model):
     model.config["task"]["function_set"] = ["add", "sin", 0, -1.0, 25, "1.23"]

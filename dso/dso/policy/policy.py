@@ -28,7 +28,7 @@ def make_policy(sess, prior, state_manager, policy_type, **config_policy):
         # Custom policy import
         policy_class = import_custom_source(policy_type)
         assert issubclass(policy_class, Policy), \
-                "Custom policy {} must subclass dso.policy.Policy.".format(policy_class)
+                f"Custom policy {policy_class} must subclass dso.policy.Policy."
         
     policy = policy_class(sess,
                           prior,
@@ -44,7 +44,7 @@ class Policy(ABC):
     """    
 
     def __init__(self, 
-            sess : tf.Session,
+            sess : tf.compat.v1.Session,
             prior : JointPrior,
             state_manager : StateManager,
             debug : int = 0,  
@@ -120,7 +120,7 @@ class Policy(ABC):
     def make_neglogp_and_entropy(self, 
             B : Batch,
             entropy_gamma : float
-            ) -> Tuple[neglogp, entropy]:
+            ) -> tuple[neglogp, entropy]:
         """Computes the negative log-probabilities for a given
         batch of actions, observations and priors
         under the current policy.
@@ -133,7 +133,7 @@ class Policy(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def sample(self, n : int) -> Tuple[actions, obs, priors]:
+    def sample(self, n : int) -> tuple[actions, obs, priors]:
         """Sample batch of n expressions.
 
         Returns

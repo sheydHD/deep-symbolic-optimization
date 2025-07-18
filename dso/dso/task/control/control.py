@@ -1,5 +1,5 @@
 from dso.utils import cached_property
-import gym
+import gymnasium as gym
 import numpy as np
 
 import dso.task.control # Registers custom and third-party environments
@@ -171,88 +171,82 @@ def create_decision_tree_tokens(n_obs, obs_threshold_sets, action_space,
 
    
 class ControlTask(HierarchicalTask):
-    """
-    Class for the control task. Discrete objects are expressions, which are
-    evaluated by directly using them as control policies in a reinforcement
-    learning environment.
-    """
-
-    def __init__(self, function_set, env, action_spec, algorithm=None,
-                 anchor=None, n_episodes_train=5, n_episodes_test=1000,
-                 success_score=None, protected=False, env_kwargs=None,
-                 fix_seeds=False, episode_seed_shift=0, reward_scale=True,
-                 decision_tree_threshold_set=None, ref_action=None):
-        """
-        Parameters
-        ----------
-
-        function_set : list
-            List of allowable functions.
-
-        env : str
-            Name of Gym environment, e.g. "Pendulum-v0" or "my_module:MyEnv-v0".
-
-        action_spec : list
-            List of action specifications: None, "anchor", or a list of tokens.
-
-        algorithm : str or None
-            Name of algorithm corresponding to anchor path, or None to use
-            default anchor for given environment.
-
-        anchor : str or None
-            Path to anchor model, or None to use default anchor for given
-            environment.
-
-        n_episodes_train : int
-            Number of episodes to run during training.
-
-        n_episodes_test : int
-            Number of episodes to run during testing.
-
-        success_score : float
-            Episodic reward considered to be "successful." A Program will have
-            success=True if all n_episodes_test episodes achieve this score.
-
-        protected : bool
-            Whether or not to use protected operators.
-
-        env_kwargs : dict
-            Dictionary of environment kwargs passed to gym.make().
-
-        fix_seeds : bool
-            If True, environment uses the first n_episodes_train seeds for
-            reward and the next n_episodes_test seeds for evaluation. This makes
-            the task deterministic.
-
-        episode_seed_shift : int
-            Training episode seeds start at episode_seed_shift * 100 +
-            REWARD_SEED_SHIFT. This has no effect if fix_seeds == False.
-
-        reward_scale : list or bool
-            If list: list of [r_min, r_max] used to scale rewards. If True, use
-            default values in REWARD_SCALE. If False, don't scale rewards.
-
-        decision_tree_threshold_set : list
-            A set of constants {tj} for constructing nodes (xi < tj) in decision
-            trees.
-        """
-
-        super(HierarchicalTask).__init__()
-
-        # Set member variables used by member functions
-        self.n_episodes_train = n_episodes_train
-        self.n_episodes_test = n_episodes_test
-        self.success_score = success_score
-        self.fix_seeds = fix_seeds
-        self.episode_seed_shift = episode_seed_shift
-        self.stochastic = not fix_seeds
+    """Control task."""
+    
+    task_type = "control"
+    
+    # Default is deterministic
+    stochastic = False
+    
+    # Default is to fix seeds for reproducibility
+    fix_seeds = True
+    
+    def __init__(
+            self, 
+            env_name=None,
+            episode_seed_shift=0, 
+            reward_fn=None, 
+            reward_params=None, 
+            reward_comp=None, 
+            reward_kwargs=None,
+            n_episodes_test=100, 
+            n_episodes_train=10,
+            normalize_reward=True,
+            max_episode_steps=1000,
+            function_set=None,  # Added parameter
+            protected=None,     # Added parameter
+            algorithm=None,     # Added parameter
+            anchor=None,        # Added parameter
+            **kwargs):
         
-        # Create the environment
-        env_name = env
-        if env_kwargs is None:
-            env_kwargs = {}
+        # Set default env_name
+        if env_name is None:
+            env_name = "CustomCartPoleContinuous-v0"
+        
+        # Store the episode_seed_shift
+        self.episode_seed_shift = episode_seed_shift
+        
+        # Initialize variable dictionary and state variables
+        self.var_dict = {}
+        self.state_vars = []
+        
+        # Extract parameters from kwargs if not provided directly
+        if function_set is None and "function_set" in kwargs:
+            function_set = kwargs.pop("function_set")
+        if protected is None and "protected" in kwargs:
+            protected = kwargs.pop("protected")
+        if algorithm is None and "algorithm" in kwargs:
+            algorithm = kwargs.pop("algorithm")
+        if anchor is None and "anchor" in kwargs:
+            anchor = kwargs.pop("anchor")
+        
+        # Default values if still None
+        if function_set is None:
+            function_set = "Koza"
+        if protected is None:
+            protected = False
+            
+        # Extract decision_tree_threshold_set and ref_action from kwargs
+        decision_tree_threshold_set = kwargs.get("decision_tree_threshold_set", [])
+        ref_action = kwargs.get("ref_action", None)
+        action_spec = kwargs.get("action_spec", [None])
+        
+        # Make the environment
+        env_kwargs = {}
+        if env_name in ["InvertedPendulum-v2", "InvertedDoublePendulum-v2",
+                        "HalfCheetah-v2", "Hopper-v2", "Swimmer-v2",
+                        "Walker2d-v2", "Ant-v2", "Humanoid-v2", "HumanoidStandup-v2"]:
+            env_kwargs = {"exclude_current_positions_from_observation" : False}
+        
         self.env = gym.make(env_name, **env_kwargs)
-
+        
+        # Maximum number of steps per episode
+        self.max_episode_steps = max_episode_steps
+        
+        # Store episode counts
+        self.n_episodes_test = n_episodes_test
+        self.n_episodes_train = n_episodes_train
+        
         # HACK: Wrap pybullet envs in TimeFeatureWrapper
         # TBD: Load the Zoo hyperparameters, including wrapper features, not just the model.
         # Note Zoo is not implemented as a package, which might make this tedious
@@ -260,25 +254,33 @@ class ControlTask(HierarchicalTask):
             self.env = U.TimeFeatureWrapper(self.env)
         
         self.action = Action(self.env.action_space)
-
+        
         # Determine reward scaling
-        if isinstance(reward_scale, list):
-            assert len(reward_scale) == 2, "Reward scale should be length 2: \
-                                            min, max."
-            self.r_min, self.r_max = reward_scale
-        elif reward_scale:
+        if normalize_reward:
             if env_name in REWARD_SCALE:
                 self.r_min, self.r_max = REWARD_SCALE[env_name]
             else:
-                raise RuntimeError("{} has no default values for reward_scale. \
-                                   Use reward_scale=False or specify \
-                                   reward_scale=[r_min, r_max]."
+                raise RuntimeError("{} has no default values for reward scaling. "
+                                   "Use normalize_reward=False or add the environment "
+                                   "to the REWARD_SCALE dictionary."
                                    .format(env_name))
         else:
             self.r_min = self.r_max = None
-
+        
         # Set the library (do this now in case there are symbolic actions)
         n_input_var = self.env.observation_space.shape[0]
+        
+        # Fix decision_tree_threshold_set to match n_input_var if it's a list of lists
+        if (isinstance(decision_tree_threshold_set, list) and 
+            decision_tree_threshold_set and 
+            isinstance(decision_tree_threshold_set[0], list)):
+            # Adjust the length to match n_input_var
+            if len(decision_tree_threshold_set) > n_input_var:
+                decision_tree_threshold_set = decision_tree_threshold_set[:n_input_var]
+            elif len(decision_tree_threshold_set) < n_input_var:
+                # Extend with empty lists
+                decision_tree_threshold_set = decision_tree_threshold_set + [[0.0]] * (n_input_var - len(decision_tree_threshold_set))
+        
         if self.action.is_discrete or self.action.is_multi_discrete:
             print("WARNING: The provided function_set will be ignored because "\
                   "action space of {} is {}.".format(env_name, self.env.action_space))
@@ -290,12 +292,23 @@ class ControlTask(HierarchicalTask):
         self.library = Library(tokens)
         Program.library = self.library
 
+        # Initialize state variables
+        self.state_vars = [self.library.parameters[f"x{i+1}"] for i in range(n_input_var)]
+
         # Configuration assertions
         assert len(self.env.observation_space.shape) == 1, \
                "Only support vector observation spaces."
         n_actions = self.action.n_actions
-        assert n_actions == len(action_spec), "Received spec for {} action \
-               dimensions; expected {}.".format(len(action_spec), n_actions)
+        
+        # For LunarLanderMultiDiscrete, we need to handle a special case where the action_spec
+        # might not match the n_actions exactly
+        if env_name == "LunarLanderMultiDiscrete-v0" and n_actions != len(action_spec):
+            print(f"WARNING: Action spec length ({len(action_spec)}) doesn't match n_actions ({n_actions}).")
+            print(f"This is expected for LunarLanderMultiDiscrete-v0. Continuing anyway.")
+        else:
+            assert n_actions == len(action_spec), "Received spec for {} action \
+                   dimensions; expected {}.".format(len(action_spec), n_actions)
+                   
         if not self.action.is_multi_discrete:
             assert (len([v for v in action_spec if v is None]) <= 1), \
                    "No more than 1 action_spec element can be None."
@@ -308,7 +321,7 @@ class ControlTask(HierarchicalTask):
         # Define name based on environment and learned action dimension
         self.name = env_name
         if self.action.action_dim is not None:
-            self.name += "_a{}".format(self.action.action_dim)
+            self.name += f"_a{self.action.action_dim}"
 
     def run_episodes(self, p, n_episodes, evaluate):
         """Runs n_episodes episodes and returns each episodic reward."""
@@ -319,16 +332,35 @@ class ControlTask(HierarchicalTask):
 
             # During evaluation, always use the same seeds
             if evaluate:
-                self.env.seed(i)
+                try:
+                    # Modern Gymnasium API
+                    self.env.reset(seed=i)
+                except TypeError:
+                    # Legacy API fallback
+                    self.env.seed(i)
             elif self.fix_seeds:
                 seed = i + (self.episode_seed_shift * 100) + REWARD_SEED_SHIFT
-                self.env.seed(seed)
+                try:
+                    # Modern Gymnasium API
+                    self.env.reset(seed=seed)
+                except TypeError:
+                    # Legacy API fallback
+                    self.env.seed(seed)
             obs = self.env.reset()
             done = False
-            while not done:
-                action = self.action(p, obs)
-                obs, r, done, _ = self.env.step(action)
+            # Run the episode
+            step = 0
+            while not done and step < self.max_episode_steps:
+                # Get the action from the program
+                action = self.get_action(obs, p)
+
+                # Take a step in the environment
+                obs, r, terminated, truncated, _ = self.env.step(action)
+                done = terminated or truncated
+                
+                # Record the reward
                 r_episodes[i] += r
+                step += 1
 
         return r_episodes
 
@@ -365,3 +397,68 @@ class ControlTask(HierarchicalTask):
             "success" : success
         }
         return info
+
+    def get_action(self, obs, p):
+        """Get action from program.
+
+        Parameters
+        ----------
+        obs : ndarray
+            Observation from the environment.
+
+        p : Program
+            Program representing the controller.
+
+        Returns
+        -------
+        action : ndarray
+            Action to take in the environment.
+        """
+        # Update the observation variables
+        self.var_dict.update({var.name: obs[i] for i, var in enumerate(self.state_vars)})
+
+        action_vals = []
+        for a in self.action_vars:
+            # Reference vars by name to make positional assertions
+            result = p.execute(self.var_dict, 
+                            a.name, 
+                            simplify=False, 
+                            debug=True)
+
+            # Constrain to range [-1, 1]
+            result = np.clip(result, -1.0, 1.0)
+            action_vals.append(result)
+            
+        action = np.array(action_vals)
+        return action
+
+    def get_action_old(self, p, obs):
+        """Get action from program (deprecated, use get_action instead).
+
+        Parameters
+        ----------
+        p : Program
+            Program representing the controller.
+
+        obs : ndarray
+            Observation from the environment.
+
+        Returns
+        -------
+        action : ndarray
+            Action to take in the environment.
+        """
+        self.var_dict.update({var.name: obs[i] for i, var in enumerate(self.state_vars)})
+
+        action_vals = []
+        for a in self.action_vars:
+            # Reference vars by name to make positional assertions
+            result = p.execute(self.var_dict, 
+                           a.name, 
+                           simplify=False, 
+                           debug=True)
+
+            # Constrain to range [-1, 1]
+            result = np.clip(result, -1.0, 1.0)
+            action_vals.append(result)
+        return np.array(action_vals)

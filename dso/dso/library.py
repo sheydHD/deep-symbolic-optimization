@@ -47,7 +47,7 @@ class Token():
 
     def __call__(self, *args):
         assert self.function is not None, \
-            "Token {} is not callable.".format(self.name)
+            f"Token {self.name} is not callable."
 
         return self.function(*args)
 
@@ -162,9 +162,9 @@ class Polynomial(Token):
             basis_name = [str(format(np.abs(self.coef[basis_count]), '.6'))]
             for i in range(len(exponents)):
                 if exponents[i] == 1:
-                    basis_name.append("x{}".format(i + 1))
+                    basis_name.append(f"x{i + 1}")
                 elif exponents[i] > 1:
-                    basis_name.append("x{}**{}".format(i + 1, int(exponents[i])))
+                    basis_name.append(f"x{i + 1}**{int(exponents[i])}")
             names.append("*".join(basis_name))
             if basis_count < len(self.coef) - 1:
                 names.append("-" if self.coef[basis_count + 1] < 0 else "+")
@@ -185,7 +185,7 @@ class Polynomial(Token):
             for i in range(len(exponents)):
                 if exponents[i] >= 1:
                     out.extend(["mul"]*(exponents[i]-1))
-                    out.extend(["x{}".format(i + 1)]*exponents[i])
+                    out.extend([f"x{i + 1}"]*exponents[i])
             out.append(self.coef[n])
         return out
 
@@ -226,7 +226,7 @@ class StateChecker(Token):
         self.state_value = None
         self.threshold = threshold
 
-        name = "x{} < {}".format(state_index + 1, self.threshold)
+        name = f"x{state_index + 1} < {self.threshold}"
         super().__init__(function=self.function, name=name, arity=2, complexity=1)
 
     def set_state_value(self, state_value):
@@ -245,7 +245,7 @@ class DiscreteAction(HardCodedConstant):
     """
     def __init__(self, value):
         assert isinstance(value, int) and value >= 0
-        super().__init__(value, "a_{}".format(value+1))
+        super().__init__(value, f"a_{value+1}")
 
 
 class MultiDiscreteAction(Token):
@@ -285,7 +285,7 @@ class MultiDiscreteAction(Token):
             super().__init__(function=self.apply_action, name=name, arity=0, complexity=1)
         else:
             assert isinstance(value, int) and value >= 0
-            name = "a{}_{}".format(action_dim+1, value+1)
+            name = f"a{action_dim+1}_{value+1}"
             super().__init__(function=self.apply_action, name=name, arity=1, complexity=1)
             
     def apply_action(self, *args):
@@ -394,16 +394,16 @@ class Library():
             try:
                 i = self.names.index(val)
             except ValueError:
-                raise TokenNotFoundError("Token {} does not exist.".format(val))
+                raise TokenNotFoundError(f"Token {val} does not exist.")
         elif isinstance(val, (int, np.integer)):
             i = val
         else:
-            raise TokenNotFoundError("Library must be indexed by str or int, not {}.".format(type(val)))
+            raise TokenNotFoundError(f"Library must be indexed by str or int, not {type(val)}.")
 
         try:
             token = self.tokens[i]
         except IndexError:
-            raise TokenNotFoundError("Token index {} does not exist".format(i))
+            raise TokenNotFoundError(f"Token index {i} does not exist")
         return token
 
     def tokenize(self, inputs):

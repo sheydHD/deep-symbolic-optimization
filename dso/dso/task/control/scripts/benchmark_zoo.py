@@ -128,7 +128,7 @@ def main(zoo_root, alg, env, n_episodes, output_filename, robustness):
                         found = True
                         break
                 if not found:
-                    print("Could not find pre-trained policy for environment {} for algorithm {}.".format(env, alg))
+                    print(f"Could not find pre-trained policy for environment {env} for algorithm {alg}.")
 
                     # Try looking again for manually trained policies
                     path = os.path.join(ZOO_ROOT, "logs", alg, env + "_1")
@@ -141,7 +141,7 @@ def main(zoo_root, alg, env, n_episodes, output_filename, robustness):
                             break
 
                     if not found:
-                        print("Could not find manually trained policy for {} for algorithm {}.".format(env, alg))
+                        print(f"Could not find manually trained policy for {env} for algorithm {alg}.")
                         continue
 
             n_actions = ENVIRONMENTS[env]["n_actions"]
@@ -196,7 +196,7 @@ def main(zoo_root, alg, env, n_episodes, output_filename, robustness):
                     value = "N/A"
 
                 # Write result
-                print("Finished evaluating {} on {}. Score: {}.".format(alg.upper(), name, score)) 
+                print(f"Finished evaluating {alg.upper()} on {name}. Score: {score}.") 
                 df = pd.DataFrame({"Environment" : [name],
                                    "Algorithm" : [alg],
                                    "Score" : [score],

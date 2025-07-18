@@ -14,7 +14,7 @@ class CustomTask(HierarchicalTask):
 
     def __init__(self, param):
 
-        super(HierarchicalTask).__init__()
+        super().__init__()
 
         self.param = param
 

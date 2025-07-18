@@ -472,7 +472,7 @@ class PolyOptimizer(PolyRegressorMixin):
         
     
 
-class PolyGenerator(object):
+class PolyGenerator:
     def __init__(self, degree, n_input_var):
         """
         Parameters

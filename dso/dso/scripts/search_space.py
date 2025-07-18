@@ -21,7 +21,7 @@ def create_model(config, prior_override=None):
         model.config["prior"] = prior_override
         model.config_prior = prior_override
     model.setup()
-    model.sess.run(tf.global_variables_initializer())
+    model.sess.run(tf.compat.v1.global_variables_initializer())
 
     return model
 
@@ -85,7 +85,7 @@ def main(config1, config2, n, mode):
             counts[k] = count_violations(actions, obs, model1)
 
         for k, v in counts.items():
-            print("Full prior constrained {}/{} samples from all-but-{}.".format(v, n, k))
+            print(f"Full prior constrained {v}/{n} samples from all-but-{k}.")
 
     """
     For each prior P, estimate search space reduction from no priors to P.
@@ -116,7 +116,7 @@ def main(config1, config2, n, mode):
             counts[k] = count_violations(actions, obs, model2)
 
         for k, v in counts.items():
-            print("Prior '{}' alone constrained {}/{} samples from no-prior config.".format(k, v, n))
+            print(f"Prior '{k}' alone constrained {v}/{n} samples from no-prior config.")
 
     """
     Estimate search space reduction from no priors to config1.
@@ -132,7 +132,7 @@ def main(config1, config2, n, mode):
         model2 = create_model(config1)
         count = count_violations(actions, obs, model2)
 
-        print("The config constrained {}/{} samples from no-prior config.".format(count, n))
+        print(f"The config constrained {count}/{n} samples from no-prior config.")
 
     """
     Estimate search space reduction from config1 to config2.
@@ -150,7 +150,7 @@ def main(config1, config2, n, mode):
         assert tokens1 == tokens2, "Tokens must be the same between config1 and config2."
         count = count_violations(actions, obs, model2)
 
-        print("The new config constrained {}/{} samples from the old config.".format(count, n))
+        print(f"The new config constrained {count}/{n} samples from the old config.")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,3 @@
-
 import tensorflow as tf
 import numpy as np
 from dso.policy_optimizer import PolicyOptimizer
@@ -21,11 +20,12 @@ class PPOPolicyOptimizer(PolicyOptimizer):
         Number of minibatches per optimization iteration for PPO.
         
     """
-    def __init__(self, 
-            sess : tf.Session,
+    def __init__(self,
+            sess : tf.compat.v1.Session,
             policy : Policy,
-            debug : int = 0, 
+            debug : int = 0,
             summary : bool = False,
+            logdir : str = None,
             # Optimizer hyperparameters
             optimizer : str = 'adam',
             learning_rate : float = 0.001,
@@ -33,22 +33,19 @@ class PPOPolicyOptimizer(PolicyOptimizer):
             entropy_weight : float = 0.005,
             entropy_gamma : float = 1.0,
             # PPO hyperparameters
-            ppo_clip_ratio : float = 0.2,
-            ppo_n_iters : int = 10,
-            ppo_n_mb : int = 4) -> None:
-        self.ppo_clip_ratio = ppo_clip_ratio
-        self.ppo_n_iters = ppo_n_iters
-        self.ppo_n_mb = ppo_n_mb
-        self.rng = np.random.RandomState(0) # Used for PPO minibatch sampling
-        super()._setup_policy_optimizer(sess, policy, debug, summary, optimizer, learning_rate, entropy_weight, entropy_gamma)
+            eps_clip : float = 0.2) -> None:
+        super()._setup_policy_optimizer(sess, policy, debug, summary, logdir, optimizer, learning_rate, entropy_weight, entropy_gamma)
+        
+        # Parameters specific for the algorithm
+        self.eps_clip = eps_clip
 
 
     def _set_loss(self):
-        with tf.name_scope("losses"):
+        with tf.compat.v1.name_scope("losses"):
             # Retrieve rewards from batch
             r = self.sampled_batch_ph.rewards
 
-            self.old_neglogp_ph = tf.placeholder(dtype=tf.float32, 
+            self.old_neglogp_ph = tf.compat.v1.placeholder(dtype=tf.float32, 
                                     shape=(None,), name="old_neglogp")
             ratio = tf.exp(self.old_neglogp_ph - self.neglogp)
             clipped_ratio = tf.clip_by_value(ratio, 1. - self.ppo_clip_ratio,
@@ -65,12 +62,13 @@ class PPOPolicyOptimizer(PolicyOptimizer):
             self.sample_kl = tf.reduce_mean(self.neglogp - self.old_neglogp_ph)
 
 
-    def _preppend_to_summary(self):
-        with tf.name_scope("summary"):
-            tf.summary.scalar("ppo_loss", self.ppo_loss)
+    def _preppend_to_summary(self, iteration):
+        with self.writer.as_default():
+            tf.summary.scalar("ppo_loss", self.ppo_loss, step=iteration)
 
 
     def train_step(self, baseline, sampled_batch):
+        self.iterations.assign_add(1) # Increment iteration counter
         feed_dict = {
             self.baseline : baseline,
             self.sampled_batch_ph : sampled_batch
@@ -99,7 +97,7 @@ class PPOPolicyOptimizer(PolicyOptimizer):
                         self.sampled_batch_ph: sampled_batch_mb
                 }
 
-                summaries, _ = self.sess.run([self.summaries, self.train_op],
+                _ = self.sess.run(self.train_op,
                                                  feed_dict=mb_feed_dict)
 
                 # Diagnostics
@@ -108,7 +106,7 @@ class PPOPolicyOptimizer(PolicyOptimizer):
                 #     feed_dict=mb_feed_dict)
                 # print("ppo_iter", ppo_iter, "i", i, "KL", kl, "CF", cf)
 
-        return summaries
+        return None
 
 
 

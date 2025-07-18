@@ -120,13 +120,13 @@ class LogEval():
         if len(self.warnings) > 0:
             print("*** WARNING:")
             for warning in self.warnings:
-                print("    --> {}".format(warning))
+                print(f"    --> {warning}")
         print("-- LOADING LOGS END ------------------")
 
     def _get_config(self):
         """Read the experiment's config file."""
 
-        with open(os.path.join(self.save_path, "config.json"), 'r') as f:
+        with open(os.path.join(self.save_path, "config.json")) as f:
             config = json.load(f)
 
         return config
@@ -146,7 +146,7 @@ class LogEval():
             except:
                 self.metrics["success_rate"] = 0.0
         except Exception as e:
-            self.warnings.append("Can't load summary: {}".format(e))
+            self.warnings.append(f"Can't load summary: {e}")
 
         return summary_df
 
@@ -157,13 +157,13 @@ class LogEval():
 
         # Get files that match regexp
         task_name = self.config["experiment"]["task_name"]
-        r = re.compile(r"dso_{}_\d+_{}.csv".format(task_name, log_type))
+        r = re.compile(fr"dso_{task_name}_\d+_{log_type}.csv")
         files = filter(r.match, os.listdir(self.save_path))
         files = [os.path.join(self.save_path, f) for f in files]
         seeds = [int(f.split("_")[-2]) for f in files]
 
         if len(files) == 0:
-            self.warnings.append("No data for {}!".format(log_type))
+            self.warnings.append(f"No data for {log_type}!")
             return None
 
         # Load each df
@@ -193,16 +193,41 @@ class LogEval():
         return log_df
 
     def _apply_pareto_filter(self, df):
-        df = df.sort_values(by=["complexity"],ascending=True)
-        df = df.reset_index(drop=True)
-        filtered_df = pd.DataFrame(columns=list(df))
-        for index, row in df.iterrows():
-            if not (filtered_df["r"] >= row["r"]).any() and \
-                    not (filtered_df["complexity"] >= row["complexity"]).any() or \
-                    index == 0 :
-                filtered_df = filtered_df.append(row, ignore_index=True)
-        # make sure that filtered_df has the same column types as the original df
-        filtered_df = filtered_df.astype(df.dtypes.to_dict())
+        """Filter out dominated solutions."""
+        filtered_df = pd.DataFrame(columns=df.columns)
+        for _, row in df.iterrows():
+            if len(filtered_df) == 0:
+                # For the first row, just add it
+                filtered_df = pd.concat([filtered_df, pd.DataFrame([row])], ignore_index=True)
+                continue
+
+            r = row["r"]
+            complexity = row["complexity"]
+
+            # Check if solution is dominated
+            dominated = False
+            rows_to_remove = []
+            for i, existing_row in filtered_df.iterrows():
+                r_existing = existing_row["r"]
+                complexity_existing = existing_row["complexity"]
+
+                # Existing solution dominates new solution
+                if r_existing >= r and complexity_existing <= complexity and (r_existing > r or complexity_existing < complexity):
+                    dominated = True
+                    break
+
+                # New solution dominates existing solution
+                if r >= r_existing and complexity <= complexity_existing and (r > r_existing or complexity < complexity_existing):
+                    rows_to_remove.append(i)
+
+            # Remove dominated existing solutions
+            if rows_to_remove:
+                filtered_df = filtered_df.drop(rows_to_remove)
+
+            # Add new solution if not dominated
+            if not dominated:
+                filtered_df = pd.concat([filtered_df, pd.DataFrame([row])], ignore_index=True)
+
         return filtered_df
 
     def plot_results(self, results, log_type, boxplot_on=False, show_plots=False, save_plots=False):
@@ -259,18 +284,18 @@ class LogEval():
         print("\n-- ANALYZING LOG START --------------")
         try:
             print("Task_____________{}".format(self.config["task"]["task_type"]))
-            print("Source path______{}".format(self.save_path))
-            print("Runs_____________{}".format(self.n_seeds))
+            print(f"Source path______{self.save_path}")
+            print(f"Runs_____________{self.n_seeds}")
             print("Max Samples/run__{}".format(self.config["training"]["n_samples"]))
             if "success_rate" in self.metrics:
                 print("Success_rate_____{}".format(self.metrics["success_rate"]))
             if len(self.warnings) > 0:
                 print("Found issues:")
                 for warning in range(len(self.warnings)):
-                    print("  {}".format(warning))
+                    print(f"  {warning}")
             if self.hof_df is not None and show_hof:
                 hof_show_count = min(show_count, len(self.hof_df))
-                print('Hall of Fame (Top {} of {})____'.format(hof_show_count, len(self.hof_df)))
+                print(f'Hall of Fame (Top {hof_show_count} of {len(self.hof_df)})____')
                 for i in range(hof_show_count):
                     print('  {:3d}: S={:03d} R={:8.6f} <-- {}'.format(
                         i, self.hof_df.iloc[i]['seed'], self.hof_df.iloc[i]['r'],
@@ -280,7 +305,7 @@ class LogEval():
                         self.hof_df, log_type="hof", boxplot_on=True,
                         show_plots=show_plots, save_plots=save_plots)
             if self.pf_df is not None and show_pf:
-                print('Pareto Front ({} of {})____'.format(min(show_count,len(self.pf_df.index)), len(self.pf_df.index)))
+                print(f'Pareto Front ({min(show_count,len(self.pf_df.index))} of {len(self.pf_df.index)})____')
                 for i in range(min(show_count,len(self.pf_df.index))):
                     print('  {:3d}: S={:03d} R={:8.6f} C={:.2f} <-- {}'.format(
                         i, self.pf_df.iloc[i]['seed'], self.pf_df.iloc[i]['r'],
@@ -292,7 +317,7 @@ class LogEval():
         except FloatingPointError:
             print("Error when analyzing!")
             for warning in self.warnings:
-                print("    --> {}".format(warning))
+                print(f"    --> {warning}")
         print("-- ANALYZING LOG END ----------------")
 
 

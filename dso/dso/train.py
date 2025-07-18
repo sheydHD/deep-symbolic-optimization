@@ -6,6 +6,7 @@ import time
 from itertools import compress
 
 import tensorflow as tf
+tf.compat.v1.disable_v2_behavior()
 import numpy as np
 
 from dso.program import Program, from_tokens
@@ -18,7 +19,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 # Set TensorFlow seed
-tf.set_random_seed(0)
+tf.random.set_seed(0)
 
 
 # Work for multiprocessing pool: compute reward
@@ -129,7 +130,7 @@ class Trainer():
         """
         self.sess = sess
         # Initialize compute graph
-        self.sess.run(tf.global_variables_initializer())
+        self.sess.run(tf.compat.v1.global_variables_initializer())
 
         self.policy = policy
         self.policy_optimizer = policy_optimizer
@@ -149,7 +150,7 @@ class Trainer():
         self.memory_threshold = memory_threshold
 
         if self.debug:
-            tvars = tf.trainable_variables()
+            tvars = tf.compat.v1.trainable_variables()
             def print_var_means():
                 tvars_vals = self.sess.run(tvars)
                 for var, val in zip(tvars, tvars_vals):
@@ -281,7 +282,7 @@ class Trainer():
         # Compute rewards in parallel
         if self.pool is not None:
             # Filter programs that need reward computing
-            programs_to_optimize = list(set([p for p in programs if "r" not in p.__dict__]))
+            programs_to_optimize = list({p for p in programs if "r" not in p.__dict__})
             pool_p_dict = { p.str : p for p in self.pool.map(work, programs_to_optimize) }
             programs = [pool_p_dict[p.str] if "r" not in p.__dict__  else p for p in programs]
             # Make sure to update cache with new programs
@@ -418,7 +419,7 @@ class Trainer():
 
             # Print new best expression
             if self.verbose or self.debug:
-                print("[{}] Training iteration {}, current best R: {:.4f}".format(get_duration(start_time), self.iteration + 1, self.r_best))
+                print(f"[{get_duration(start_time)}] Training iteration {self.iteration + 1}, current best R: {self.r_best:.4f}")
                 print("\n\t** New best")
                 self.p_r_best.print_stats()
 
@@ -433,14 +434,14 @@ class Trainer():
 
         # Stop if early stopping criteria is met
         if self.early_stopping and self.p_r_best.evaluate.get("success"):
-            print("[{}] Early stopping criteria met; breaking early.".format(get_duration(start_time)))
+            print(f"[{get_duration(start_time)}] Early stopping criteria met; breaking early.")
             self.done = True
 
         if self.verbose and (self.iteration + 1) % 10 == 0:
-            print("[{}] Training iteration {}, current best R: {:.4f}".format(get_duration(start_time), self.iteration + 1, self.r_best))
+            print(f"[{get_duration(start_time)}] Training iteration {self.iteration + 1}, current best R: {self.r_best:.4f}")
 
         if self.debug >= 2:
-            print("\nParameter means after iteration {}:".format(self.iteration + 1))
+            print(f"\nParameter means after iteration {self.iteration + 1}:")
             self.print_var_means()
 
         if self.nevals >= self.n_samples:
@@ -463,14 +464,14 @@ class Trainer():
         with open(save_path, 'w') as f:
             json.dump(state_dict, f)
 
-        print("Saved Trainer state to {}.".format(save_path))
+        print(f"Saved Trainer state to {save_path}.")
 
     def load(self, load_path):
         """
         Load the state of the Trainer.
         """
 
-        with open(load_path, 'r') as f:
+        with open(load_path) as f:
             state_dict = json.load(f)
 
         # Load nevals and iteration from savestate
@@ -484,4 +485,4 @@ class Trainer():
         else:
             self.p_r_best = None
 
-        print("Loaded Trainer state from {}.".format(load_path))
+        print(f"Loaded Trainer state from {load_path}.")

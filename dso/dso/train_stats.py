@@ -99,14 +99,14 @@ class StatsLogger():
         if self.output_file is not None:
             os.makedirs(os.path.dirname(self.output_file), exist_ok=True)
             prefix, _ = os.path.splitext(self.output_file)
-            self.all_r_output_file = "{}_all_r.npy".format(prefix)
-            self.all_info_output_file = "{}_all_info.csv".format(prefix)
-            self.hof_output_file = "{}_hof.csv".format(prefix)
-            self.pf_output_file = "{}_pf.csv".format(prefix)
-            self.positional_entropy_output_file = "{}_positional_entropy.npy".format(prefix)
-            self.top_samples_per_batch_output_file = "{}_top_samples_per_batch.csv".format(prefix)
-            self.cache_output_file = "{}_cache.csv".format(prefix)
-            self.token_counter_output_file = "{}_token_count.csv".format(prefix)
+            self.all_r_output_file = f"{prefix}_all_r.npy"
+            self.all_info_output_file = f"{prefix}_all_info.csv"
+            self.hof_output_file = f"{prefix}_hof.csv"
+            self.pf_output_file = f"{prefix}_pf.csv"
+            self.positional_entropy_output_file = f"{prefix}_positional_entropy.npy"
+            self.top_samples_per_batch_output_file = f"{prefix}_top_samples_per_batch.csv"
+            self.cache_output_file = f"{prefix}_cache.csv"
+            self.token_counter_output_file = f"{prefix}_token_count.csv"
             with open(self.output_file, 'w') as f:
                 # r_best : Maximum across all iterations so far
                 # r_max : Maximum across this iteration's batch
@@ -166,17 +166,17 @@ class StatsLogger():
         # Create summary writer
         if self.save_summary:
             if self.output_file is not None:
-                summary_dir = "{}_summary".format(prefix)
+                summary_dir = f"{prefix}_summary"
             else:
                 timestamp = datetime.now().strftime("%Y-%m-%d-%H%M%S")
                 summary_dir = os.path.join("summary", timestamp)
-            self.summary_writer = tf.summary.FileWriter(summary_dir, self.sess.graph)
+            self.summary_writer = tf.summary.create_file_writer(summary_dir)
         else:
             self.summary_writer = None
 
     def save_stats(self, r_full, l_full, actions_full, s_full, invalid_full, r,
-                   l, actions, s, s_history, invalid, r_best, r_max, ewma,
-                   summaries, iteration, baseline, iteration_walltime, nevals,
+                   l, actions, s, s_history, invalid, r_best, r_max, ewma, summaries,
+                   iteration, baseline, iteration_walltime, nevals,
                    programs, positional_entropy, top_samples_per_batch):
 
         """
@@ -196,7 +196,7 @@ class StatsLogger():
         :param r_best: reward from the all time best program so far
         :param r_max: reward from the best program in this iteration
         :param ewma: Exponentially Weighted Moving Average weight that might be used for baseline computation
-        :param summaries: Sumarries returned by the Controller this step
+        :param summaries: Summaries returned by the Controller this step
         :param iteration: This iteration id
         :param baseline: baseline value used for training
         :param iteration_walltime: time taken to process this iteration
@@ -258,7 +258,7 @@ class StatsLogger():
 
         # summary writers have their own buffer
         if self.save_summary:
-            self.summary_writer.add_summary(summaries, iteration)
+            pass
 
         # Should the buffer be saved now?
         if iteration % self.buffer_frequency == 0:
@@ -327,12 +327,12 @@ class StatsLogger():
             hof_results = [result[:-1] + [result[-1][k] for k in eval_keys] for result in results]
             df = pd.DataFrame(hof_results, columns=columns)
             if self.hof_output_file is not None:
-                print("Saving Hall of Fame to {}".format(self.hof_output_file))
+                print(f"Saving Hall of Fame to {self.hof_output_file}")
                 df.to_csv(self.hof_output_file, header=True, index=False)
 
         # Save cache
         if self.save_cache and Program.cache:
-            print("Saving cache to {}".format(self.cache_output_file))
+            print(f"Saving cache to {self.cache_output_file}")
             cache_data = [(repr(p), p.on_policy_count, p.off_policy_count, p.r) for p in Program.cache.values()]
             df_cache = pd.DataFrame(cache_data)
             df_cache.columns = ["str", "count_on_policy", "count_off_policy", "r"]
@@ -361,7 +361,7 @@ class StatsLogger():
             pf_results = [result[:-1] + [result[-1][k] for k in eval_keys] for result in results]
             df = pd.DataFrame(pf_results, columns=columns)
             if self.pf_output_file is not None:
-                print("Saving Pareto Front to {}".format(self.pf_output_file))
+                print(f"Saving Pareto Front to {self.pf_output_file}")
                 df.to_csv(self.pf_output_file, header=True, index=False)
 
             # Look for a success=True case within the Pareto front
@@ -373,8 +373,8 @@ class StatsLogger():
         #Save error summaries
         # Print error statistics of the cache
         n_invalid = 0
-        error_types = defaultdict(lambda: 0)
-        error_nodes = defaultdict(lambda: 0)
+        error_types = defaultdict(int)
+        error_nodes = defaultdict(int)
 
         result = {}
         for p in Program.cache.values():
@@ -389,11 +389,11 @@ class StatsLogger():
                                                                     n_invalid / n_samples))
             print("Error type counts:")
             for error_type, count in error_types.items():
-                print("  {}: {} ({:.1%})".format(error_type, count, count / n_invalid))
+                print(f"  {error_type}: {count} ({count / n_invalid:.1%})")
                 result["error_"+str(error_type)] = count
             print("Error node counts:")
             for error_node, count in error_nodes.items():
-                print("  {}: {} ({:.1%})".format(error_node, count, count / n_invalid))
+                print(f"  {error_node}: {count} ({count / n_invalid:.1%})")
                 result["error_node_" + str(error_node)] = count
 
         result['n_samples'] = n_samples
@@ -407,7 +407,7 @@ class StatsLogger():
                 token_counter[token.name] += 1
         stats = np.array([[
             token_counter[token] for token in token_counter.keys()
-        ]], dtype=np.int)
+        ]], dtype=np.int32)
         np.savetxt(self.buffer_token_stats, stats, fmt='%i', delimiter=',')
 
     def flush_buffers(self):

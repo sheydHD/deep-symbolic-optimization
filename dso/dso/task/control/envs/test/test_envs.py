@@ -1,6 +1,6 @@
 """Test that given the same seed, changing dt does not alter the starting state and does alter the next state"""
 
-import gym
+import gymnasium as gym
 import dso.task.control.envs # Needed to register the environments so they're seen by gym.make()
 import numpy as np
 
@@ -29,13 +29,13 @@ for env_id in env_ids:
     # Assert starting states are identical
     s0 = data[env_id][dts[0]]["s0"]
     for dt in dts[1:]:
-        assert np.array_equal(s0, data[env_id][dt]["s0"]), "Starting states for {} are not identical.".format(env_id)
+        assert np.array_equal(s0, data[env_id][dt]["s0"]), f"Starting states for {env_id} are not identical."
 
     # Assert next states are not identical
     s1 = data[env_id][dts[0]]["s1"]
     for dt in dts[1:]:
-        assert not np.array_equal(s1, data[env_id][dt]["s1"]), "Next states for {} are identical.".format(env_id)
+        assert not np.array_equal(s1, data[env_id][dt]["s1"]), f"Next states for {env_id} are identical."
 
-    print("Test passed for {}.".format(env_id))
+    print(f"Test passed for {env_id}.")
 
 print("All tests passed.")

@@ -29,10 +29,14 @@ import numpy as np
 import Box2D
 from Box2D.b2 import (edgeShape, circleShape, fixtureDef, polygonShape, revoluteJointDef, contactListener)
 
-import gym
-from gym import spaces
-from gym.utils import seeding, EzPickle
-from gym.envs.box2d import LunarLanderContinuous
+import gymnasium as gym
+from gymnasium import spaces
+from gymnasium.utils import seeding, EzPickle
+try:
+    from gymnasium.envs.box2d import LunarLanderContinuous
+except ImportError:
+    # Fallback if gymnasium doesn't have LunarLanderContinuous yet
+    pass
 
 FPS = 50
 SCALE = 30.0   # affects how fast-paced the game is, forces should be adjusted as well
@@ -262,7 +266,7 @@ class CustomLunarLander(gym.Env, EzPickle):
         if self.continuous:
             action = np.clip(action, -1, +1).astype(np.float32)
         else:
-            assert self.action_space.contains(action), "%r (%s) invalid " % (action, type(action))
+            assert self.action_space.contains(action), "{!r} ({}) invalid ".format(action, type(action))
 
         # Engines
         tip  = (math.sin(self.lander.angle), math.cos(self.lander.angle))
@@ -355,7 +359,10 @@ class CustomLunarLander(gym.Env, EzPickle):
         return np.array(state, dtype=np.float32), reward, done, {}
 
     def render(self, mode='human'):
-        from gym.envs.classic_control import rendering
+        try:
+            from gymnasium.envs.classic_control import rendering
+        except ImportError:
+            return None
         if self.viewer is None:
             self.viewer = rendering.Viewer(VIEWPORT_W, VIEWPORT_H)
             self.viewer.set_bounds(0, VIEWPORT_W/SCALE, 0, VIEWPORT_H/SCALE)
@@ -398,24 +405,60 @@ class CustomLunarLander(gym.Env, EzPickle):
             self.viewer = None
 
 
-class LunarLanderMultiDiscrete(LunarLanderContinuous):
+class LunarLanderMultiDiscrete(gym.Wrapper):
     """
-    Instead of the Box [-1.0, 1.0] X [-1.0, 1.0], action space is MultiDiscrete
-    with discrete actions 0, 1, 2 in each action dimension, which correspond to
-    -1.0, 0.0, 1.0 in the original continuous space in each action dimension.
+    A modified version of LunarLander that makes the action space multi-discrete.
+
+    The standard LunarLander environment has a discrete action space with 4 possible
+    actions:
+        0: do nothing
+        1: fire left engine
+        2: fire main engine
+        3: fire right engine
+
+    This modified version has a MultiDiscrete action space with 2 components:
+        component 0:
+            0: don't fire
+            1: fire
+        component 1:
+            0: main engine
+            1: left engine
+            2: right engine
     """
+    
+    # Define proper metadata (required by Gymnasium)
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 50}
+
     def __init__(self):
-       super().__init__()
-       self.action_space = spaces.MultiDiscrete([3,3])
-
+        # Use gymnasium's make to create the base environment
+        env = gym.make("LunarLander-v2")
+        super().__init__(env)
+        
+        # Override action space with MultiDiscrete
+        self.action_space = gym.spaces.MultiDiscrete([2, 3])
+        
+    def reset(self, **kwargs):
+        return self.env.reset(**kwargs)
+        
     def step(self, action):
-        assert self.action_space.contains(action), "%r (%s) invalid " % (action, type(action))
-        action -= 1
-        return super().step(action)
-
-    def reset(self):
-        super().reset()
-        return super().step(np.array([0,0]))[0]
+        # Convert multi-discrete action to discrete action
+        # action[0]: 0=don't fire, 1=fire
+        # action[1]: 0=main, 1=left, 2=right
+        
+        if action[0] == 0:  # don't fire
+            discrete_action = 0  # noop
+        else:  # fire
+            if action[1] == 0:
+                discrete_action = 2  # main engine
+            elif action[1] == 1:
+                discrete_action = 1  # left engine
+            else:
+                discrete_action = 3  # right engine
+        
+        # Call the underlying environment's step method
+        obs, reward, terminated, truncated, info = self.env.step(discrete_action)
+        
+        return obs, reward, terminated, truncated, info
 
 
 def heuristic(env, s):
@@ -475,8 +518,8 @@ def demo_heuristic_lander(env, seed=None, render=False):
             if still_open == False: break
 
         if steps % 20 == 0 or done:
-            print("observations:", " ".join(["{:+0.2f}".format(x) for x in s]))
-            print("step {} total_reward {:+0.2f}".format(steps, total_reward))
+            print("observations:", " ".join([f"{x:+0.2f}" for x in s]))
+            print(f"step {steps} total_reward {total_reward:+0.2f}")
         steps += 1
         if done: break
     return total_reward

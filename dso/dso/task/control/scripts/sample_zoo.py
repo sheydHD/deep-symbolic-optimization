@@ -4,7 +4,7 @@ import sys
 
 import numpy as np
 import click
-import gym
+import gymnasium as gym
 
 import dso.task.control.utils as U
 

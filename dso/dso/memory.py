@@ -95,7 +95,7 @@ def get_samples(batch, key):
 
 
 # Adapted from https://github.com/tensorflow/models/blob/1af55e018eebce03fb61bba9959a04672536107d/research/brain_coder/common/utils.py
-class ItemContainer(object):
+class ItemContainer:
     """Class for holding an item with its score.
 
     Defines a comparison function for use in the heap-queue.
@@ -136,7 +136,7 @@ class ItemContainer(object):
         return repr(self)
 
 
-class Queue(object):
+class Queue:
     """Abstract class for queue that must define a push and pop routine"""
 
     def __init__(self, capacity, seed=0):
@@ -360,7 +360,7 @@ class ProgramQueueMixin():
         priors = np.concatenate(priors, axis=0)
         lengths = np.array([s.lengths for s in samples], dtype=np.int32)
         rewards = np.array([s.rewards for s in samples], dtype=np.float32)
-        on_policy = np.array([s.on_policy for s in samples], dtype=np.bool)
+        on_policy = np.array([s.on_policy for s in samples], dtype=np.bool_)
         batch = Batch(actions=actions, obs=obs, priors=priors,
                       lengths=lengths, rewards=rewards, on_policy=on_policy)
         return batch

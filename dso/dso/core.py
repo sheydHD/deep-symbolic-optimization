@@ -13,6 +13,7 @@ from datetime import datetime
 
 import numpy as np
 import tensorflow as tf
+tf.compat.v1.disable_v2_behavior()
 import commentjson as json
 
 from dso.task import set_task
@@ -56,16 +57,16 @@ class DeepSymbolicOptimizer():
 
         # Clear the cache and reset the compute graph
         Program.clear_cache()
-        tf.reset_default_graph()
+        tf.compat.v1.reset_default_graph()
 
         # Generate objects needed for training and set seeds
         self.pool = self.make_pool_and_set_task()
         self.set_seeds() # Must be called _after_ resetting graph and _after_ setting task
 
         # Limit TF to single thread to prevent "resource not available" errors in parallelized runs
-        session_config = tf.ConfigProto(intra_op_parallelism_threads=1,
+        session_config = tf.compat.v1.ConfigProto(intra_op_parallelism_threads=1,
                                         inter_op_parallelism_threads=1)
-        self.sess = tf.Session(config=session_config)
+        self.sess = tf.compat.v1.Session(config=session_config)
 
         # Setup logdirs and output files
         self.output_file = self.make_output_file()
@@ -193,7 +194,7 @@ class DeepSymbolicOptimizer():
         shifted_seed = seed + zlib.adler32(task_name.encode("utf-8"))
 
         # Set the seeds using the shifted seed
-        tf.set_random_seed(shifted_seed)
+        tf.random.set_seed(shifted_seed)
         np.random.seed(shifted_seed)
         random.seed(shifted_seed)
 
@@ -310,7 +311,7 @@ class DeepSymbolicOptimizer():
 
         seed = self.config_experiment["seed"]
         output_file = os.path.join(save_path,
-                                   "dso_{}_{}.csv".format(task_name, seed))
+                                   f"dso_{task_name}_{seed}.csv")
 
         self.save_path = save_path
 

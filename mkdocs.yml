@@ -13,12 +13,6 @@ nav:
   - Guides:
       - Installation: guides/installation.md
       - Getting Started: guides/getting_started.md
-      - Legacy Compatibility (Py 3.6 / TF 1.14): guides/legacy_setup.md
-  - Architecture:
-      - Overview: architecture/overview.md
-  - Reference: reference/api_reference.md
-  - Operations:
-      - Release Process: operations/release_process.md
   - Rules:
       - Code Style: rules/code_style.md
       - Testing Rules: rules/testing_rules.md
@@ -29,12 +23,12 @@ nav:
       - Project Structure: rules/project_structure.md
       - Security Rules: rules/security_rules.md
       - Rules Overview: rules/README.md
-  - Legal:
-      - Code of Conduct: legal/CODE_OF_CONDUCT.md
-      - Security Policy: legal/SECURITY.md
-  - Roadmap:
-      - Modernization Plan: todo/modernization_plan.md
-      - Modernization Roadmap: todo/modernization_roadmap.md
+  - Structure: structure/project_structure.md
+  - Tasks:
+      - Modernization Plan: tasks/done/modernization_plan.md
+      - Modernization Roadmap: tasks/done/modernization_roadmap.md
+      - Test Fixes: tasks/done/test_fix.md
+      - Upgrade Summary: tasks/done/upgrade_summary.md
 
 theme:
   name: material

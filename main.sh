@@ -1,15 +1,21 @@
 #!/usr/bin/env bash
-# Root dispatcher for DSO helper scripts.
-# Currently delegates to legacy CLI (Bash).
+# Root launcher for Deep Symbolic Optimization using the modern toolchain.
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CLI_PATH="$SCRIPT_DIR/tools/bash/cli/cli_legacy.sh"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export ROOT_DIR              # child scripts can rely on this
 
-if [ ! -f "$CLI_PATH" ]; then
-  echo "Error: CLI script not found at $CLI_PATH" >&2
-  exit 1
-fi
-bash "$CLI_PATH" "$@"
+MODERN="$ROOT_DIR/tools/python/run.py"
 
+usage() {
+  cat <<EOF
+Usage: ./main.sh [args …]
+       ./main.sh            # interactive menu
+EOF
+}
+
+if [[ ${1:-} =~ ^(-h|--help)$ ]]; then usage; exit 0; fi
+
+# Execute the modern toolchain directly
+exec python3 "$MODERN" "$@"

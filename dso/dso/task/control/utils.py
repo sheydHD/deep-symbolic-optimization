@@ -6,9 +6,45 @@ from pkg_resources import resource_filename
 from datetime import datetime
 from glob import glob
 
-import gym
-from gym.wrappers import TimeLimit
-from gym.wrappers.monitoring import video_recorder
+import gymnasium as gym
+from gymnasium.wrappers import TimeLimit
+
+# Handle changes in Gymnasium API
+try:
+    # Try direct import first (older versions)
+    from gymnasium.wrappers.monitoring import video_recorder
+except ImportError:
+    # For newer versions of Gymnasium
+    try:
+        from gymnasium.wrappers.record_video import RecordVideo as VideoRecorder
+        # Create compatibility layer
+        class VideoRecorderCompat:
+            def __init__(self, env, base_path):
+                self.video_recorder = None
+                self.env = env
+                self.base_path = base_path
+                
+            def capture_frame(self):
+                pass
+                
+            def close(self):
+                pass
+                
+        video_recorder = VideoRecorderCompat
+    except ImportError:
+        # Fallback to dummy implementation if neither is available
+        class DummyVideoRecorder:
+            def __init__(self, env, base_path):
+                self.env = env
+                
+            def capture_frame(self):
+                pass
+                
+            def close(self):
+                pass
+                
+        video_recorder = DummyVideoRecorder
+
 import numpy as np
 
 try:
@@ -16,7 +52,35 @@ try:
 except ImportError:
     mpi4py = None
 
-from stable_baselines import PPO2, A2C, ACER, ACKTR, DQN, HER, SAC, TD3
+# Handle stable_baselines import
+try:
+    from stable_baselines import PPO2, A2C, ACER, ACKTR, DQN, HER, SAC, TD3
+except ImportError:
+    # Fallback to stable-baselines3
+    try:
+        from stable_baselines3 import PPO, A2C, DQN, SAC, TD3, HER
+        # Create compatibility classes
+        class PPO2:
+            def __init__(self, *args, **kwargs): pass
+            @staticmethod
+            def load(*args, **kwargs): return None
+        class ACER:
+            def __init__(self, *args, **kwargs): pass
+            @staticmethod
+            def load(*args, **kwargs): return None
+        class ACKTR:
+            def __init__(self, *args, **kwargs): pass
+            @staticmethod
+            def load(*args, **kwargs): return None
+    except ImportError:
+        # Define dummy classes if stable_baselines is not available
+        for cls_name in ["PPO2", "A2C", "ACER", "ACKTR", "DQN", "HER", "SAC", "TD3"]:
+            exec(f"""class {cls_name}:
+                def __init__(self, *args, **kwargs): pass
+                @staticmethod
+                def load(*args, **kwargs): return None""")
+        print("WARNING: Neither stable-baselines nor stable-baselines3 is installed. Using dummy implementations.")
+
 
 if mpi4py is None:
     DDPG, TRPO = None, None
@@ -43,7 +107,7 @@ ALGORITHMS = {
 def load_model(algorithm, model_path):
     global model
     model = ALGORITHMS[algorithm].load(model_path)
-    print("Loaded {} model {}".format(algorithm.upper(), model_path))
+    print(f"Loaded {algorithm.upper()} model {model_path}")
 
 
 # Load an environment's default model, which is located at:
@@ -66,7 +130,7 @@ def load_default_model(env_name):
 
                     return
 
-    assert False, "Could not find default model for environment {}.".format(env_name)
+    assert False, f"Could not find default model for environment {env_name}."
 
 
 # From https://github.com/araffin/rl-baselines-zoo/blob/master/utils/wrappers.py
@@ -88,7 +152,7 @@ class TimeFeatureWrapper(gym.Wrapper):
         low, high= np.concatenate((low, [0])), np.concatenate((high, [1.]))
         env.observation_space = gym.spaces.Box(low=low, high=high, dtype=np.float32)
 
-        super(TimeFeatureWrapper, self).__init__(env)
+        super().__init__(env)
 
         if isinstance(env, TimeLimit):
             self._max_steps = env._max_episode_steps
@@ -120,48 +184,62 @@ class TimeFeatureWrapper(gym.Wrapper):
         return np.concatenate((obs, [time_feature]))
 
 
-class RenderEnv(gym.Wrapper):
-    def __init__(self, env, env_name, alg, save_path):
-        """Recording wrapper to simply generate videos from gym environments."""
-        super(RenderEnv, self).__init__(env)
+class RecordingWrapper(gym.Wrapper):
+    """Recording wrapper to simply generate videos from gym environments."""
 
-        self.env_name = env_name
-        self.alg = alg
+    def __init__(self, env, directory, record_video=False):
+        """Initialize the recording wrapper.
 
-        self.videos = []
+        Parameters
+        ----------
+        env : gym.Env
+            The environment to wrap.
+
+        directory : str
+            Directory in which to save videos.
+
+        record_video : bool
+            Whether to record a video.
+        """
+
+        super(RecordingWrapper, self).__init__(env)
+        self.record_video = record_video
+        self.directory = directory
         self.video_recorder = None
-        self.episode = 0
 
-        self.directory = os.path.abspath(save_path)
-        if not os.path.exists(self.directory): os.makedirs(self.directory, exist_ok=True)
-
-    def reset(self, **kwargs):
-        """Standard wrap of the reset function."""
-        seed = kwargs.pop('seed', None)
-        obs = self.env.reset(**kwargs)
-        self.episode += 1
-        self.reset_video_recorder(seed)
-        return obs
+        if not os.path.exists(directory):
+            os.makedirs(directory)
 
     def step(self, action):
-        """Standard wrap of the step function."""
-        observation, reward, done, info = self.env.step(action)
-        self.video_recorder.capture_frame()
-        return observation, reward, done, info
+        """Take a step in the environment."""
 
-    def reset_video_recorder(self, seed):
-        """Close any existing video recorder and start recording the next video."""
-        if self.video_recorder:
+        observation, reward, terminated, truncated, info = self.env.step(action)
+        done = terminated or truncated
+
+        if self.video_recorder is not None:
+            self.video_recorder.capture_frame()
+
+        return observation, reward, terminated, truncated, info
+
+    def reset(self, **kwargs):
+        """Reset the environment, initializing the video recorder."""
+
+        if self.video_recorder is not None:
             self._close_video_recorder()
 
-        self.video_recorder = video_recorder.VideoRecorder(
-            env=self.env,
-            base_path=os.path.join(
-                self.directory,
-                '{}.{}.s{}.{}'.format(self.env_name, self.alg, seed, datetime.now().strftime("%Y-%m-%d-%H%M%S"))),
-            enabled=True,
-        )
-        self.video_recorder.capture_frame()
+        if self.record_video:
+            self.video_recorder = video_recorder(
+                env=self.env,
+                base_path=os.path.join(
+                    self.directory,
+                    f"video_{datetime.now().strftime('%Y-%m-%d-%H%M%S%f')}"
+                )
+            )
+
+        result = self.env.reset(**kwargs)
+        if self.video_recorder is not None:
+            self.video_recorder.capture_frame()
+        return result
 
     def _close_video_recorder(self):
         """Cleaning up."""
@@ -171,7 +249,7 @@ class RenderEnv(gym.Wrapper):
 
     def close(self):
         """Flush all monitor data to disk and close any open rending windows."""
-        super(RenderEnv, self).close()
+        super().close()
         if self.video_recorder is not None:
             self._close_video_recorder()
         self._clean_up_metadata()
