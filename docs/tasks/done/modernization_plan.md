@@ -29,7 +29,7 @@ source .venv/bin/activate
 
 1.5 [ ] Enable **pre-commit** hooks with modern tools: **ruff** (lint + import-sort), **black** (format), and **mypy** (typing skeleton).
 
-1.6 [ ] For **every** code or documentation change, ensure compliance with the internal standards described in [`git_rules`](../rules/git_rules.md) and [`docs_rules`](../rules/docs_rules.md).  
+1.6 [ ] For **every** code or documentation change, ensure compliance with the internal standards described in [`git_rules`](../../rules/git_rules.md) and [`docs_rules`](../../rules/docs_rules.md).  
  Commit messages **must** follow _Conventional Commits_; docs must follow the formatting & structure rules. Add missing docs _in the same PR_ as the change.
 
 ---

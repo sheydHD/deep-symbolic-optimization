@@ -6,13 +6,16 @@ This quick guide walks you through training a symbolic regression model on the c
 
 ## 1. Install & Activate Environment
 
-First, ensure you have set up your environment as described in [`installation.md`](installation.md).
+1. Clone the repo:  
+   `git clone https://github.com/your-org/dso.git && cd dso`
 
-Then, activate your virtual environment:
+2. Run setup:  
+   `./main.sh` (press `1` when prompted)
 
-```bash
-source .venv/bin/activate
-```
+3. Activate environment:  
+   `source .venv/bin/activate`
+
+That's it! You're ready to use DSO.
 
 ## 2. Run the Example Benchmark
 
@@ -58,4 +61,4 @@ pytest -q dso/dso/test/
 
 - Explore other datasets in `dso/dso/task/regression/data/`.
 - Tweak the search space via `dso/dso/scripts/search_space.py`.
-- Read the [Architecture Overview](../architecture/overview.md) to understand the algorithm internals.
+- See the [Project Structure](../structure/project_structure.md) for code organization.

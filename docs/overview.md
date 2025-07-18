@@ -23,11 +23,7 @@ Deep Symbolic Optimization (DSO) is a framework for generating compact, human-re
 - **Engineers** needing compact surrogate models or controllers.
 - **Educators** demonstrating program synthesis techniques.
 
-## High-Level Architecture
-
-See [`architecture/overview.md`](architecture/overview.md) for diagrams and component interactions.
-
 ## Quick Links
 
 - Getting started: [`guides/getting_started.md`](guides/getting_started.md)
-- API reference: [`reference/api_reference.md`](reference/api_reference.md)
+- Configuration guide: [`guides/installation.md`](guides/installation.md)
