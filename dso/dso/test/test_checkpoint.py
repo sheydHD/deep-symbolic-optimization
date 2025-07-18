@@ -39,8 +39,8 @@ def test_checkpoint_manual(tmp_path, pqt):
 
     timestamp = None
     for i in range(N_STEPS):
-        load_path = os.path.join(tmp_path, "checkpoint_{}".format(i - 1)) if i > 0 else None
-        save_path = os.path.join(tmp_path, "checkpoint_{}".format(i))
+        load_path = os.path.join(tmp_path, f"checkpoint_{i - 1}") if i > 0 else None
+        save_path = os.path.join(tmp_path, f"checkpoint_{i}")
 
         config = make_config(logdir=tmp_path, seed=i, timestamp=timestamp)
         if pqt:

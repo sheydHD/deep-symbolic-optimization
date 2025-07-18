@@ -23,7 +23,7 @@ def train_dso(config):
     # For some reason, for the control task, the environment needs to be instantiated
     # before creating the pool. Otherwise, gym.make() hangs during the pool initializer
     if config["task"]["task_type"] == "control" and config["training"]["n_cores_batch"] > 1:
-        import gym
+        import gymnasium as gym
         import dso.task.control # Registers custom and third-party environments
         gym.make(config["task"]["env"])
 
@@ -50,11 +50,11 @@ def print_summary(config, runs, messages):
     elif config["task"]["task_type"] == "control":
         text += 'Environment          : {}\n'.format(config["task"]["env"])
     text += 'Starting seed        : {}\n'.format(config["experiment"]["seed"])
-    text += 'Runs                 : {}\n'.format(runs)
+    text += f'Runs                 : {runs}\n'
     if len(messages) > 0:
         text += 'Additional context   :\n'
         for message in messages:
-            text += "      {}\n".format(message)
+            text += f"      {message}\n"
     text += '== EXPERIMENT SETUP END ============='
     print(text)
 
@@ -85,7 +85,7 @@ def main(config_template, runs, n_cores_task, seed, benchmark, exp_name):
         elif task_type == "control":
             config["task"]["env"] = benchmark
         else:
-            raise ValueError("--b is not supported for task {}.".format(task_type))
+            raise ValueError(f"--b is not supported for task {task_type}.")
 
     # Update save dir if provided
     if exp_name is not None:
@@ -142,13 +142,13 @@ def main(config_template, runs, n_cores_task, seed, benchmark, exp_name):
         pool = multiprocessing.Pool(n_cores_task)
         for i, (result, summary_path) in enumerate(pool.imap_unordered(train_dso, configs)):
             if not safe_update_summary(summary_path, result):
-                print("Warning: Could not update summary stats at {}".format(summary_path))
+                print(f"Warning: Could not update summary stats at {summary_path}")
             print("INFO: Completed run {} of {} in {:.0f} s".format(i + 1, runs, result["t"]))
     else:
         for i, config in enumerate(configs):
             result, summary_path = train_dso(config)
             if not safe_update_summary(summary_path, result):
-                print("Warning: Could not update summary stats at {}".format(summary_path))
+                print(f"Warning: Could not update summary stats at {summary_path}")
             print("INFO: Completed run {} of {} in {:.0f} s".format(i + 1, runs, result["t"]))
 
     # Evaluate the log files

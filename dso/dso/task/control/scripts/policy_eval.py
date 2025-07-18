@@ -15,7 +15,7 @@ import glob
 import os
 import numpy as np
 import click
-import gym
+import gymnasium as gym
 import subprocess
 
 from datetime import datetime
@@ -103,9 +103,9 @@ ALGS = [
 def get_env_info(env_name, env):
     print(" ")
     print("==========================================")
-    print("Env: {}".format(env_name))
-    print("Action space: {} --> Single Agent Sample: {}".format(env.action_space, env.action_space.sample()))
-    print("Observation space: {} --> Single Agent Sample: {}".format(env.observation_space, env.reset()))
+    print(f"Env: {env_name}")
+    print(f"Action space: {env.action_space} --> Single Agent Sample: {env.action_space.sample()}")
+    print(f"Observation space: {env.observation_space} --> Single Agent Sample: {env.reset()}")
     print("==========================================")
 
 
@@ -117,19 +117,19 @@ class Model():
     def load_model(self, env_name):
         if self.alg != "symbolic":
             env_models_path = os.path.join(resource_filename("dso.task", "control"), "data", env_name)
-            alg_models = glob.glob("{}/*-{}.*".format(env_models_path, self.alg.lower()))
+            alg_models = glob.glob(f"{env_models_path}/*-{self.alg.lower()}.*")
             if len(alg_models) == 0:
-                print("WARNING: No '{}' model available for '{}'!".format(self.alg.upper(), env_name))
+                print(f"WARNING: No '{self.alg.upper()}' model available for '{env_name}'!")
                 return None
             try:
                 U.load_model(self.alg, alg_models[0])
             except:
-                print("WARNING: Model available but could not load: '{}'".format(alg_models[0]))
+                print(f"WARNING: Model available but could not load: '{alg_models[0]}'")
                 return None
             return U.model
         else:
             if len(ENVS[env_name]["symbolic"]) == 0:
-                 print("WARNING: No symbolic policy available for env '{}'!".format(env_name))
+                 print(f"WARNING: No symbolic policy available for env '{env_name}'!")
                  return None
             config_task = {
                 "task_type" : "control",
@@ -190,7 +190,7 @@ def main(env, alg, episodes, max_steps, seed=0,
     if all([isinstance(e, str) for e in env]) and all([e != "all" for e in env]) and len(env) > 0:
         #assert all([e in ENVS for e in env]), "ERROR: Environment '{}' unknown!".format(env)
         if not all([e in ENVS for e in env]):
-            print("WARNING: {} environment not available!".format([e for e in env if e not in ENVS]))
+            print(f"WARNING: {[e for e in env if e not in ENVS]} environment not available!")
         exp_envs = {e: ENVS[e] for e in env if e in ENVS}
     else:
         exp_envs = ENVS
@@ -198,7 +198,7 @@ def main(env, alg, episodes, max_steps, seed=0,
     # Preparing algs from input
     if all([isinstance(a, str) for a in alg]) and all([a != "all" for a in alg]) and len(alg) > 0:
         if not all([a.lower() in ALGS for a in alg]):
-            print("WARNING: {} algorithm not available!".format([a for a in alg if a.lower() not in ALGS]))
+            print(f"WARNING: {[a for a in alg if a.lower() not in ALGS]} algorithm not available!")
         exp_algs = [a.lower() for a in alg if a.lower() in ALGS]
     else:
         exp_algs = ALGS
@@ -222,9 +222,9 @@ def main(env, alg, episodes, max_steps, seed=0,
             if print_env:
                 get_env_info(env_name, env)
             if record:
-                save_path = "videos/{}".format(env_name)
+                save_path = f"videos/{env_name}"
                 env = U.RenderEnv(env, env_name, alg, save_path)
-                text.append("Saving videos to: {}".format(save_path))
+                text.append(f"Saving videos to: {save_path}")
 
             # Load model
             model_load_start = time.time()
@@ -243,19 +243,19 @@ def main(env, alg, episodes, max_steps, seed=0,
                 generated_seed = env.seed(seed + i + REGRESSION_SEED_SHIFT)
                 obs = env.reset(seed=generated_seed[0])
                 if print_state:
-                    print("[E {:3d}/S {:3d}] S:".format(i + 1, episode_step - 1), ["{:.4f}".format(x) for x in obs])
+                    print(f"[E {i + 1:3d}/S {episode_step - 1:3d}] S:", [f"{x:.4f}" for x in obs])
                 done = False
                 rewards = []
                 while not done:
                     [action, _states], predict_duration = model.predict(obs)
                     if print_action:
-                        print("[E {:3d}/S {:3d}] A:".format(i + 1, episode_step), ["{:.4f}".format(x) for x in action])
+                        print(f"[E {i + 1:3d}/S {episode_step:3d}] A:", [f"{x:.4f}" for x in action])
                     action_durations.append(predict_duration)
                     obs, reward, done, info = env.step(action)
                     if print_reward:
-                        print("[E {:3d}/S {:3d}] R: {:.4f}".format(i + 1, episode_step, reward))
+                        print(f"[E {i + 1:3d}/S {episode_step:3d}] R: {reward:.4f}")
                     if print_state:
-                        print("[E {:3d}/S {:3d}] S:".format(i + 1, episode_step), ["{:.4f}".format(x) for x in obs])
+                        print(f"[E {i + 1:3d}/S {episode_step:3d}] S:", [f"{x:.4f}" for x in obs])
                     rewards.append(reward)
                     episode_step += 1
                     if max_steps == episode_step:
@@ -269,7 +269,7 @@ def main(env, alg, episodes, max_steps, seed=0,
                 datetime.now(), commit_label])
 
         # Print summary
-        print("=== {} === Averages over {} episodes =========================".format(alg, episodes))
+        print(f"=== {alg} === Averages over {episodes} episodes =========================")
         if len(text) > 0:
             for line in text:
                 print(line)

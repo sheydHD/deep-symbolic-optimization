@@ -9,13 +9,13 @@ From: https://gist.github.com/iandanforth/e3ffb67cf3623153e968f2afdfb01dc8
 """
 
 import math
-import gym
-from gym import spaces, logger
-from gym.utils import seeding
+import gymnasium as gym
+from gymnasium import spaces, logger
+from gymnasium.utils import seeding
 import numpy as np
 
 
-class CustomCartPoleContinuousEnv(gym.Env):
+class CustomCartPoleContinuous(gym.Env):
     metadata = {
         'render.modes': ['human', 'rgb_array'],
         'video.frames_per_second': 50
@@ -77,19 +77,44 @@ class CustomCartPoleContinuousEnv(gym.Env):
         return (x, x_dot, theta, theta_dot)
 
     def step(self, action):
-        assert self.action_space.contains(action), \
-            "%r (%s) invalid" % (action, type(action))
-        # Cast action to float to strip np trappings
-        force = self.force_mag * float(action)
-        self.state = self.stepPhysics(force)
+        """
+        Step the environment forward.
+        
+        Args:
+            action: The action to take
+            
+        Returns:
+            observation (object): Agent's observation of the environment.
+            reward (float): Amount of reward returned after step.
+            terminated (bool): Whether the episode has ended due to termination conditions.
+            truncated (bool): Whether the episode has ended due to truncation conditions.
+            info (dict): Auxiliary diagnostic information.
+        """
+        err_msg = f"{action!r} ({type(action)}) invalid"
+        assert self.action_space.contains(action), err_msg
+        
         x, x_dot, theta, theta_dot = self.state
-        done = x < -self.x_threshold \
+        force = self.force_mag * float(action[0])
+        costheta = math.cos(theta)
+        sintheta = math.sin(theta)
+        temp = (force + self.polemass_length * theta_dot * theta_dot * sintheta) / self.total_mass
+        thetaacc = (self.gravity * sintheta - costheta * temp) / (self.length * (4.0 / 3.0 - self.masspole * costheta * costheta / self.total_mass))
+        xacc = temp - self.polemass_length * thetaacc * costheta / self.total_mass
+        x = x + self.tau * x_dot
+        x_dot = x_dot + self.tau * xacc
+        theta = theta + self.tau * theta_dot
+        theta_dot = theta_dot + self.tau * thetaacc
+        self.state = (x, x_dot, theta, theta_dot)
+        
+        terminated = x < -self.x_threshold \
             or x > self.x_threshold \
             or theta < -self.theta_threshold_radians \
             or theta > self.theta_threshold_radians
-        done = bool(done)
-
-        if not done:
+        truncated = False  # We don't use truncation
+        
+        done = terminated
+        
+        if not terminated:
             reward = 1.0
         elif self.steps_beyond_done is None:
             # Pole just fell!
@@ -97,22 +122,41 @@ class CustomCartPoleContinuousEnv(gym.Env):
             reward = 1.0
         else:
             if self.steps_beyond_done == 0:
-                logger.warn("""
-You are calling 'step()' even though this environment has already returned
-done = True. You should always call 'reset()' once you receive 'done = True'
-Any further steps are undefined behavior.
-                """)
+                logger.warn(
+                    "You are calling 'step()' even though this environment has already returned done = True. "
+                    "You should always call 'reset()' once you receive 'done = True' -- any further steps are "
+                    "undefined behavior."
+                )
             self.steps_beyond_done += 1
             reward = 0.0
 
-        return np.array(self.state), reward, done, {}
+        return np.array(self.state, dtype=np.float32), reward, terminated, truncated, {}
 
-    def reset(self):
+    def reset(self, *, seed=None, options=None):
+        """
+        Resets the state of the environment and returns an initial observation.
+        
+        Args:
+            seed (int, optional): The seed that is used to initialize the environment's PRNG.
+                If the environment does not already have a PRNG and seed=None,
+                a seed will be chosen from some source of entropy.
+            options (dict, optional): Additional information to specify how the environment is reset.
+
+        Returns:
+            observation (object): The initial observation of the space.
+        """
+        if seed is not None:
+            self.np_random, seed = seeding.np_random(seed)
+            
         self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(4,))
         self.steps_beyond_done = None
-        return np.array(self.state)
+        return np.array(self.state, dtype=np.float32)
 
     def render(self, mode='human'):
+        try:
+            from gymnasium.envs.classic_control import rendering
+        except ImportError:
+            return None
         screen_width = 600
         screen_height = 400
 
@@ -125,7 +169,6 @@ Any further steps are undefined behavior.
         cartheight = 30.0
 
         if self.viewer is None:
-            from gym.envs.classic_control import rendering
             self.viewer = rendering.Viewer(screen_width, screen_height)
             l, r, t, b = -cartwidth / 2, cartwidth / 2, cartheight / 2, -cartheight / 2
             axleoffset = cartheight / 4.0

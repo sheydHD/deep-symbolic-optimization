@@ -13,7 +13,7 @@ import numpy as np
 from dso.functions import function_map
 
 
-class BenchmarkDataset(object):
+class BenchmarkDataset:
     """
     Class used to generate (X, y) data from a named benchmark expression.
 
@@ -86,7 +86,7 @@ class BenchmarkDataset(object):
             self.y_train += self.rng.normal(loc=0, scale=scale, size=self.y_train.shape)
             self.y_test += self.rng.normal(loc=0, scale=scale, size=self.y_test.shape)
         elif self.noise < 0:
-            print('WARNING: Ignoring negative noise value: {}'.format(self.noise))
+            print(f'WARNING: Ignoring negative noise value: {self.noise}')
 
         # Load default function set
         function_set_path = os.path.join(root, "function_sets.csv")
@@ -96,38 +96,46 @@ class BenchmarkDataset(object):
 
         # Prepare status output
         output_message = '\n-- BUILDING DATASET START -----------\n'
-        output_message += 'Generated data for benchmark   : {}\n'.format(name)
-        output_message += 'Benchmark path                 : {}\n'.format(benchmark_path)
-        output_message += 'Function set                   : {} --> {}\n'.format(function_set_name, self.function_set)
-        output_message += 'Function set path              : {}\n'.format(function_set_path)
+        output_message += f'Generated data for benchmark   : {name}\n'
+        output_message += f'Benchmark path                 : {benchmark_path}\n'
+        output_message += f'Function set                   : {function_set_name} --> {self.function_set}\n'
+        output_message += f'Function set path              : {function_set_path}\n'
         test_spec_txt = row["test_spec"] if row["test_spec"] != "None" else "{} (Copy from train!)".format(row["test_spec"])
         output_message += 'Dataset specifications         : \n' \
                           + '        Train --> {}\n'.format(row["train_spec"]) \
-                          + '        Test  --> {}\n'.format(test_spec_txt)
+                          + f'        Test  --> {test_spec_txt}\n'
         random_choice_train = self.rng.randint(self.X_train.shape[0])
-        random_sample_train = "[{}],[{}]".format(self.X_train[random_choice_train], self.y_train[random_choice_train])
+        random_sample_train = f"[{self.X_train[random_choice_train]}],[{self.y_train[random_choice_train]}]"
         output_message += 'Built data set                 : \n' \
-                          + '        Train --> X:{}, y:{}, Sample: {}\n'.format(self.X_train.shape, self.y_train.shape, random_sample_train)
+                          + f'        Train --> X:{self.X_train.shape}, y:{self.y_train.shape}, Sample: {random_sample_train}\n'
         if row["test_spec"] is not None:
             random_choice_test = self.rng.randint(self.X_test.shape[0])
-            random_sample_test = "[{}],[{}]".format(self.X_test[random_choice_test], self.y_test[random_choice_test])
-            output_message += '        Test  --> X:{}, y:{}, Sample: {}\n'.format(self.X_test.shape, self.y_test.shape, random_sample_test)
+            random_sample_test = f"[{self.X_test[random_choice_test]}],[{self.y_test[random_choice_test]}]"
+            output_message += f'        Test  --> X:{self.X_test.shape}, y:{self.y_test.shape}, Sample: {random_sample_test}\n'
         if backup and logdir is not None:
             output_message += self.save(logdir)
         output_message += '-- BUILDING DATASET END -------------\n'
         print(output_message)
 
     def extract_dataset_specs(self, specs):
-        specs = ast.literal_eval(specs)
-        if specs is not None:
-            specs['distribution'] = list(list(specs.items())[0][1].items())[0][0]
-            if specs['distribution'] == "E":
-                lower = list(list(specs.items())[0][1].items())[0][1][0]
-                upper = list(list(specs.items())[0][1].items())[0][1][1]
-                distance = upper - lower
-                specs['dataset_size'] = int(distance / list(list(specs.items())[0][1].items())[0][1][2]) + 1
-            else:
-                specs['dataset_size'] = list(list(specs.items())[0][1].items())[0][1][2]
+        # Handle NaN values that might come from pandas
+        if specs is None or (isinstance(specs, str) and specs.lower() == 'nan'):
+            return None
+        try:
+            specs = ast.literal_eval(specs)
+            if specs is not None:
+                specs['distribution'] = list(list(specs.items())[0][1].items())[0][0]
+                if specs['distribution'] == "E":
+                    lower = list(list(specs.items())[0][1].items())[0][1][0]
+                    upper = list(list(specs.items())[0][1].items())[0][1][1]
+                    distance = upper - lower
+                    specs['dataset_size'] = int(distance / list(list(specs.items())[0][1].items())[0][1][2]) + 1
+                else:
+                    specs['dataset_size'] = list(list(specs.items())[0][1].items())[0][1][2]
+        except (ValueError, SyntaxError) as e:
+            # Handle malformed strings including 'nan' values
+            print(f"Warning: Could not parse dataset spec '{specs}': {e}")
+            return None
         return specs
 
     def build_dataset(self, specs, max_iterations=1000, max_repeated_empty=100):
@@ -143,11 +151,11 @@ class BenchmarkDataset(object):
         count_iterations = 0
         while(current_size < specs["dataset_size"]):
             if count_iterations > max_iterations:
-                assert False, "Dataset creation taking too long. Got {} from {}".format(X_tmp.shape, specs)
+                assert False, f"Dataset creation taking too long. Got {X_tmp.shape} from {specs}"
             missing_value_count = specs["dataset_size"] - current_size
             # Get all X values
             X = self.make_X(specs, missing_value_count)
-            assert X.ndim == 2, "Dataset X has wrong dimension: {} != 2".format(X.ndim)
+            assert X.ndim == 2, f"Dataset X has wrong dimension: {X.ndim} != 2"
             # Calculate y values
             y = self.numpy_expr(X)
             # Sanity check
@@ -155,7 +163,7 @@ class BenchmarkDataset(object):
             if y.shape[0] == 0:
                 count_repeated_empty += 1
                 if count_repeated_empty > max_repeated_empty:
-                    assert False, "Dataset cannot be created in the given range: {}".format(specs)
+                    assert False, f"Dataset cannot be created in the given range: {specs}"
             # Put old and new data together if available
             if not X_tmp is None:
                 X = np.append(X, X_tmp, axis=0)
@@ -163,7 +171,7 @@ class BenchmarkDataset(object):
             current_size = X.shape[0]
             # Handle "E" distributions
             if X.shape[0] != specs["dataset_size"] and specs['distribution'] == "E":
-                assert False, "Equal distant data points cannot be created in the given range: {}".format(specs)
+                assert False, f"Equal distant data points cannot be created in the given range: {specs}"
             X_tmp = X
             y_tmp = y
             count_iterations +=1
@@ -185,7 +193,7 @@ class BenchmarkDataset(object):
         for i in range(1, self.n_input_var + 1):
 
             # Hierarchy: "all" --> "x{}".format(i)
-            input_var = "x{}".format(i)
+            input_var = f"x{i}"
             if "all" in spec:
                 input_var = "all"
             elif input_var not in spec:
@@ -202,7 +210,7 @@ class BenchmarkDataset(object):
                     n = int((stop - start)/step) + 1
                 feature = np.linspace(start=start, stop=stop, num=n, endpoint=True)
             else:
-                raise ValueError("Did not recognize specification for {}: {}.".format(input_var, spec[input_var]))
+                raise ValueError(f"Did not recognize specification for {input_var}: {spec[input_var]}.")
             features.append(feature)
 
         # Do multivariable combinations
@@ -223,11 +231,11 @@ class BenchmarkDataset(object):
         s = s.replace("pi", "np.pi")
         s = s.replace("pow", "np.power")
         for k in function_map.keys():
-            s = s.replace(k + '(', "function_map['{}'].function(".format(k))
+            s = s.replace(k + '(', f"function_map['{k}'].function(")
         # Replace variable names
         for i in reversed(range(self.n_input_var)):
-            old = "x{}".format(i+1)
-            new = "x[:, {}]".format(i)
+            old = f"x{i+1}"
+            new = f"x[:, {i}]"
             s = s.replace(old, new)
         #Return numpy expression
         return lambda x : eval(s)
@@ -247,11 +255,11 @@ class BenchmarkDataset(object):
                     ), axis=0),
                 delimiter=',', fmt='%1.5f'
             )
-            return 'Saved dataset to               : {}\n'.format(save_path)
+            return f'Saved dataset to               : {save_path}\n'
         except:
             import sys
             e = sys.exc_info()[0]
-            print("WARNING: Could not save dataset: {}".format(e))
+            print(f"WARNING: Could not save dataset: {e}")
 
     def plot(self, logdir='./'):
         """Plot Dataset with underlying ground truth."""
@@ -275,11 +283,11 @@ class BenchmarkDataset(object):
             try:
                 os.makedirs(logdir, exist_ok=True)
                 plt.savefig(save_path)
-                print('Saved plot to                  : {}'.format(save_path))
+                print(f'Saved plot to                  : {save_path}')
             except:
                 import sys
                 e = sys.exc_info()[0]
-                print("WARNING: Could not plot dataset: {}".format(e))
+                print(f"WARNING: Could not plot dataset: {e}")
             plt.close()
         else:
             print("WARNING: Plotting only supported for 2D datasets.")

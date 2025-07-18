@@ -31,7 +31,7 @@ def check_error(poly, X, y, regressor):
     diff = poly(X)
     diff -= y
     rel_err = np.linalg.norm(diff) / np.linalg.norm(y)
-    assert rel_err < rel_tol, "\nregressor: {}\npoly(X) = {}".format(regressor, repr(poly))
+    assert rel_err < rel_tol, f"\nregressor: {regressor}\npoly(X) = {repr(poly)}"
 
 
 def test_polyfit():
@@ -43,7 +43,7 @@ def test_polyfit():
         target_poly = poly_generator.generate()
         y = target_poly(X)
 
-        print("\ntest_polyfit #{}: \ny = {}".format(test, target_poly))
+        print(f"\ntest_polyfit #{test}: \ny = {target_poly}")
         for regressor in regressors:
             poly_optimizer = PolyOptimizer(degree, coef_tol, regressor, options[regressor])
             poly = poly_optimizer.fit(X, y)
@@ -61,7 +61,7 @@ def test_poly_optimize():
                               (0, 0, 1, 0, 0, 1, 0, 0, 0, 1)], np.array([12.0, 1.3, -0.05]))
     y = target_poly(task.X_train)
 
-    print("target_poly = {}".format(repr(target_poly)))
+    print(f"target_poly = {repr(target_poly)}")
     for regressor in regressors:
         task.poly_optimizer = PolyOptimizer(degree, coef_tol, regressor, options[regressor])
         my_program = from_str_tokens(['div', 'sin', 'x4', 'mul', 'sqrt', 'poly', 'exp', 'x7'])
@@ -89,4 +89,4 @@ def test_poly_to_traversal():
         diff -= y
         rel_err = np.linalg.norm(diff) / np.linalg.norm(y)
         assert rel_err < 1e-8, \
-            "The converted traversal for {} is incorrect!".format(poly)
+            f"The converted traversal for {poly} is incorrect!"

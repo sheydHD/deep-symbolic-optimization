@@ -38,8 +38,8 @@
 
 - **Requirements Management**
 
-  - Added `configs/requirements/base_legacy_all.txt` for full legacy installation.
-  - Added `configs/requirements/base_legacy_regression.txt` for minimal regression use case.
+  - Added `configs/requirements/legacy/base_legacy_extended.txt` for full legacy installation.
+  - Added `configs/requirements/legacy/base_legacy_regression.txt` for minimal regression use case.
 
 ### Changed
 

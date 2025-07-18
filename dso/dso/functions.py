@@ -133,12 +133,12 @@ function_map = {
 
 # Add protected ops to function map
 function_map.update({
-    "protected_{}".format(op.name) : op for op in protected_ops
+    f"protected_{op.name}" : op for op in protected_ops
     })
 
-TERMINAL_TOKENS = set([op.name for op in function_map.values() if op.arity == 0])
-UNARY_TOKENS    = set([op.name for op in function_map.values() if op.arity == 1])
-BINARY_TOKENS   = set([op.name for op in function_map.values() if op.arity == 2])
+TERMINAL_TOKENS = {op.name for op in function_map.values() if op.arity == 0}
+UNARY_TOKENS    = {op.name for op in function_map.values() if op.arity == 1}
+BINARY_TOKENS   = {op.name for op in function_map.values() if op.arity == 2}
 
 
 def create_state_checkers(n_states, threshold_set):
@@ -197,7 +197,7 @@ def create_tokens(n_input_var, function_set, protected, decision_tree_threshold_
 
     # Create input variable Tokens
     for i in range(n_input_var):
-        token = Token(name="x{}".format(i + 1), arity=0, complexity=1,
+        token = Token(name=f"x{i + 1}", arity=0, complexity=1,
                       function=None, input_var=i)
         tokens.append(token)
 
@@ -207,7 +207,7 @@ def create_tokens(n_input_var, function_set, protected, decision_tree_threshold_
         if op in function_map:
             # Overwrite available protected operators
             if protected and not op.startswith("protected_"):
-                protected_op = "protected_{}".format(op)
+                protected_op = f"protected_{op}"
                 if protected_op in function_map:
                     op = protected_op
 
@@ -225,7 +225,7 @@ def create_tokens(n_input_var, function_set, protected, decision_tree_threshold_
             token = Polynomial()
 
         else:
-            raise ValueError("Operation {} not recognized.".format(op))
+            raise ValueError(f"Operation {op} not recognized.")
 
         tokens.append(token)
 

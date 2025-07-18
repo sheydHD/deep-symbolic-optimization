@@ -18,7 +18,7 @@ def make_const_optimizer(name, **kwargs):
     return const_optimizers[name](**kwargs)
 
 
-class ConstOptimizer(object):
+class ConstOptimizer:
     """Base class for constant optimizer"""
     
     def __init__(self, **kwargs):
@@ -53,7 +53,7 @@ class Dummy(ConstOptimizer):
     """Dummy class that selects the initial guess for each constant"""
 
     def __init__(self, **kwargs):
-        super(Dummy, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     
     def __call__(self, f, x0):
@@ -64,7 +64,7 @@ class ScipyMinimize(ConstOptimizer):
     """SciPy's non-linear optimizer"""
 
     def __init__(self, **kwargs):
-        super(ScipyMinimize, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     
     def __call__(self, f, x0):

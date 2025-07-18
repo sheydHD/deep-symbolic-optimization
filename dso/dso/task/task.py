@@ -226,7 +226,7 @@ def make_task(task_type, **config_task):
         # Custom task import
         task_class = import_custom_source(task_type)
         assert issubclass(task_class, Task), \
-            "Custom task {} must subclass dso.task.Task.".format(task_class)
+            f"Custom task {task_class} must subclass dso.task.Task."
 
     task = task_class(**config_task)
     return task

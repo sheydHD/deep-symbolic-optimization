@@ -28,7 +28,7 @@ def make_policy_optimizer(sess, policy, policy_optimizer_type, **config_policy_o
         # Custom policy import
         policy_optimizer_class = import_custom_source(policy_optimizer_type)
         assert issubclass(policy_optimizer_class, Policy), \
-                "Custom policy {} must subclass dso.policy.Policy.".format(policy_optimizer_class)
+                f"Custom policy {policy_optimizer_class} must subclass dso.policy.Policy."
         
     policy_optimizer = policy_optimizer_class(sess,
                                               policy,
@@ -43,16 +43,17 @@ class PolicyOptimizer(ABC):
     To define a new optimizer, inherit from this class and add the following
     methods (look in _setup_policy_optimizer below):
 
-        _set_loss() : Define the \propto \log(p(\tau|\theta)) loss for the method
+        _set_loss() : Define the \\propto \\log(p(\tau|\theta)) loss for the method
         _preppend_to_summary() : Add additional fields for the tensorflow summary
 
     """    
 
     def _init(self, 
-            sess : tf.Session,
+            sess : tf.compat.v1.Session,
             policy : Policy,
             debug : int = 0,    
             summary : bool = False,
+            logdir : str = None,
             # Optimizer hyperparameters
             optimizer : str = 'adam',
             learning_rate : float = 0.001,
@@ -73,6 +74,9 @@ class PolicyOptimizer(ABC):
 
         summary : bool
             Write tensorboard summaries?
+
+        logdir : str or None
+            Directory for TensorBoard summaries.
 
         optimizer : str
             Optimizer to use. Supports 'adam', 'rmsprop', and 'sgd'.
@@ -97,13 +101,14 @@ class PolicyOptimizer(ABC):
 
         # Need in self.summary
         self.summary = summary
+        self.logdir = logdir
         
         # Needed for make_batch_ph calls 
         self.n_choices = Program.library.L
 
         # Placeholders, computed after instantiating expressions
-        self.batch_size = tf.placeholder(dtype=tf.int32, shape=(), name="batch_size")
-        self.baseline = tf.placeholder(dtype=tf.float32, shape=(), name="baseline")
+        self.batch_size = tf.compat.v1.placeholder(dtype=tf.int32, shape=(), name="batch_size")
+        self.baseline = tf.compat.v1.placeholder(dtype=tf.float32, shape=(), name="baseline")
    
         # On policy batch
         self.sampled_batch_ph = make_batch_ph("sampled_batch", self.n_choices)
@@ -112,11 +117,14 @@ class PolicyOptimizer(ABC):
         self.entropy_weight = entropy_weight
         self.entropy_gamma = entropy_gamma
 
+        # Iteration counter for summaries
+        self.iterations = tf.Variable(0, dtype=tf.int64, name="iterations")
+
 
     def _init_loss_with_entropy(self) -> None:
         # Add entropy contribution to loss. The entropy regularizer does not
         # depend on the particular policy optimizer
-        with tf.name_scope("losses"):
+        with tf.compat.v1.name_scope("losses"):
 
             self.neglogp, entropy = self.policy.make_neglogp_and_entropy(self.sampled_batch_ph, self.entropy_gamma)
 
@@ -130,7 +138,7 @@ class PolicyOptimizer(ABC):
 
     @abstractmethod
     def _set_loss(self) -> None:
-        """Define the \propto \log(p(\tau|\theta)) loss for the method
+        """Define the \\propto \\log(p(\tau|\theta)) loss for the method
 
         Returns
         -------
@@ -144,28 +152,28 @@ class PolicyOptimizer(ABC):
         """    
         def make_optimizer(name, learning_rate):
             if name == "adam":
-                return tf.train.AdamOptimizer(learning_rate=learning_rate)
+                return tf.compat.v1.train.AdamOptimizer(learning_rate=learning_rate)
             if name == "rmsprop":
-                return tf.train.RMSPropOptimizer(learning_rate=learning_rate, decay=0.99)
+                return tf.compat.v1.train.RMSPropOptimizer(learning_rate=learning_rate, decay=0.99)
             if name == "sgd":
-                return tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
-            raise ValueError("Did not recognize optimizer '{}'".format(name))
+                return tf.compat.v1.train.GradientDescentOptimizer(learning_rate=learning_rate)
+            raise ValueError(f"Did not recognize optimizer '{name}'")
 
         # Create training op
         optimizer = make_optimizer(name=self.optimizer, learning_rate=self.learning_rate)
-        with tf.name_scope("train"):
+        with tf.compat.v1.name_scope("train"):
             self.grads_and_vars = optimizer.compute_gradients(self.loss)
             self.train_op = optimizer.apply_gradients(self.grads_and_vars)
             # The two lines above are equivalent to:
             # self.train_op = optimizer.minimize(self.loss)
-        with tf.name_scope("grad_norm"):
+        with tf.compat.v1.name_scope("grad_norm"):
             self.grads, _ = list(zip(*self.grads_and_vars))
-            self.norms = tf.global_norm(self.grads)  
+            self.norms = tf.linalg.global_norm(self.grads)  
         
         if self.debug >= 1:
             total_parameters = 0
             print("")
-            for variable in tf.trainable_variables():
+            for variable in tf.compat.v1.trainable_variables():
                 shape = variable.get_shape()
                 n_parameters = np.product(shape)
                 total_parameters += n_parameters
@@ -176,37 +184,36 @@ class PolicyOptimizer(ABC):
 
 
     # abstractmethod (override if needed)
-    def _preppend_to_summary(self) -> None:
+    def _preppend_to_summary(self, iteration) -> None:
         """Add particular fields to the summary log.
         Override if needed.
         """
         pass
         
 
-    def _setup_summary(self) -> None:
+    def _setup_summary(self, iteration) -> None:
         """ Setup tensor flow summary
         """    
-        with tf.name_scope("summary"):
-            tf.summary.scalar("entropy_loss", self.entropy_loss)
-            tf.summary.scalar("total_loss", self.loss)
-            tf.summary.scalar("reward", tf.reduce_mean(self.sampled_batch_ph.rewards))
-            tf.summary.scalar("baseline", self.baseline)
-            tf.summary.histogram("reward", self.sampled_batch_ph.rewards)
-            tf.summary.histogram("length", self.sampled_batch_ph.lengths)
-            for g, v in self.grads_and_vars:
-                tf.summary.histogram(v.name, v)
-                tf.summary.scalar(v.name + '_norm', tf.norm(v))
-                tf.summary.histogram(v.name + '_grad', g)
-                tf.summary.scalar(v.name + '_grad_norm', tf.norm(g))
-            tf.summary.scalar('gradient norm', self.norms)
-            self.summaries = tf.summary.merge_all()
+        tf.summary.scalar("entropy_loss", self.entropy_loss, step=iteration)
+        tf.summary.scalar("total_loss", self.loss, step=iteration)
+        tf.summary.scalar("reward", tf.reduce_mean(self.sampled_batch_ph.rewards), step=iteration)
+        tf.summary.scalar("baseline", self.baseline, step=iteration)
+        tf.summary.histogram("reward", self.sampled_batch_ph.rewards, step=iteration)
+        tf.summary.histogram("length", self.sampled_batch_ph.lengths, step=iteration)
+        for g, v in self.grads_and_vars:
+            tf.summary.histogram(v.name, v, step=iteration)
+            tf.summary.scalar(v.name + '_norm', tf.norm(v), step=iteration)
+            tf.summary.histogram(v.name + '_grad', g, step=iteration)
+            tf.summary.scalar(v.name + '_grad_norm', tf.norm(g), step=iteration)
+        tf.summary.scalar('gradient norm', self.norms, step=iteration)
 
 
     def _setup_policy_optimizer(self, 
-            sess : tf.Session,
+            sess : tf.compat.v1.Session,
             policy : Policy,
             debug : int = 0,    
             summary : bool = False,
+            logdir : str = None,
             # Optimizer hyperparameters
             optimizer : str = 'adam',
             learning_rate : float = 0.001,
@@ -215,21 +222,21 @@ class PolicyOptimizer(ABC):
             entropy_gamma : float = 1.0) -> None:
         """Setup of the policy optimizer.
         """ 
-        self._init(sess, policy, debug, summary, optimizer, learning_rate, entropy_weight, entropy_gamma)
+        self._init(sess, policy, debug, summary, logdir, optimizer, learning_rate, entropy_weight, entropy_gamma)
         self._init_loss_with_entropy()
         self._set_loss() # Abstract method defined in derived class
         self._setup_optimizer()
         if self.summary:
-            self._preppend_to_summary() # Abstract method defined in derived class
-            self._setup_summary()
-        else:
-            self.summaries = tf.no_op()        
+            self.writer = tf.summary.create_file_writer(self.logdir)
+            with self.writer.as_default():
+                self._preppend_to_summary(self.iterations) # Pass iteration to subclasses
+                self._setup_summary(self.iterations) # Pass iteration        
 
 
     @abstractmethod
     def train_step(self, 
             baseline : np.ndarray, 
-            sampled_batch : Batch) -> summaries:
+            sampled_batch : Batch) -> None:
         """Computes loss, trains model, and returns summaries.
 
         Returns

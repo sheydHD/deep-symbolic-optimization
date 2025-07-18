@@ -1,6 +1,6 @@
-import gym
-from gym import spaces
-from gym.utils import seeding
+import gymnasium as gym
+from gymnasium import spaces
+from gymnasium.utils import seeding
 import numpy as np
 from os import path
 
@@ -30,7 +30,20 @@ class CustomPendulumEnv(gym.Env):
         return [seed]
 
     def step(self, u):
-        th, thdot = self.state # th := theta
+        """
+        Step the environment forward.
+        
+        Args:
+            u: The action to take
+            
+        Returns:
+            observation (object): Agent's observation of the environment.
+            reward (float): Amount of reward returned after step.
+            terminated (bool): Whether the episode has ended due to termination conditions.
+            truncated (bool): Whether the episode has ended due to truncation conditions.
+            info (dict): Auxiliary diagnostic information.
+        """
+        th, thdot = self.state  # th := theta
 
         g = self.g
         m = self.m
@@ -38,17 +51,37 @@ class CustomPendulumEnv(gym.Env):
         dt = self.dt
 
         u = np.clip(u, -self.max_torque, self.max_torque)[0]
-        self.last_u = u # for rendering
-        costs = angle_normalize(th)**2 + .1*thdot**2 + .001*(u**2)
+        self.last_u = u  # for rendering
+        costs = angle_normalize(th) ** 2 + .1 * thdot ** 2 + .001 * (u ** 2)
 
-        newthdot = thdot + (-3*g/(2*l) * np.sin(th + np.pi) + 3./(m*l**2)*u) * dt
-        newth = th + newthdot*dt
-        newthdot = np.clip(newthdot, -self.max_speed, self.max_speed) #pylint: disable=E1111
+        newthdot = thdot + (-3 * g / (2 * l) * np.sin(th + np.pi) + 3. / (m * l ** 2) * u) * dt
+        newth = th + newthdot * dt
+        newthdot = np.clip(newthdot, -self.max_speed, self.max_speed)
 
         self.state = np.array([newth, newthdot])
-        return self._get_obs(), -costs, False, {}
+        
+        # Pendulum task doesn't have a natural termination condition
+        terminated = False
+        truncated = False
+        
+        return self._get_obs(), -costs, terminated, truncated, {}
 
-    def reset(self):
+    def reset(self, *, seed=None, options=None):
+        """
+        Resets the state of the environment and returns an initial observation.
+        
+        Args:
+            seed (int, optional): The seed that is used to initialize the environment's PRNG.
+                If the environment does not already have a PRNG and seed=None,
+                a seed will be chosen from some source of entropy.
+            options (dict, optional): Additional information to specify how the environment is reset.
+
+        Returns:
+            observation (object): The initial observation of the space.
+        """
+        if seed is not None:
+            self.np_random, seed = seeding.np_random(seed)
+            
         high = np.array([np.pi, 1])
         self.state = self.np_random.uniform(low=-high, high=high)
         self.last_u = None
@@ -59,9 +92,12 @@ class CustomPendulumEnv(gym.Env):
         return np.array([np.cos(theta), np.sin(theta), thetadot])
 
     def render(self, mode='human'):
+        try:
+            from gymnasium.envs.classic_control import rendering
+        except ImportError:
+            return None
 
         if self.viewer is None:
-            from gym.envs.classic_control import rendering
             self.viewer = rendering.Viewer(500,500)
             self.viewer.set_bounds(-2.2,2.2,-2.2,2.2)
             rod = rendering.make_capsule(1, .2)

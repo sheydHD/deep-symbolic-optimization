@@ -1,6 +1,6 @@
 """Utility functions used in deep symbolic optimization."""
 
-import collections
+import collections.abc
 import copy
 import functools
 import numpy as np
@@ -10,6 +10,8 @@ import random
 import re
 import os
 import pandas as pd
+import tensorflow as tf
+from contextlib import contextmanager
 
 import sympy.parsing.sympy_parser as sympy_parser
 import sympy
@@ -94,7 +96,7 @@ def is_pareto_efficient(costs):
     return is_efficient_mask
 
 
-class cached_property(object):
+class cached_property:
     """
     Decorator used for lazy evaluation of an object attribute. The property
     should be non-mutable, since it replaces itself.
@@ -173,7 +175,7 @@ def get_human_readable_time(s):
     m, s = divmod(s, 60)
     h, m = divmod(m, 60)
     d, h = divmod(h, 24)
-    return "{:02d}:{:02d}:{:02d}:{:05.2f}".format(int(d), int(h), int(m), s)
+    return f"{int(d):02d}:{int(h):02d}:{int(m):02d}:{s:05.2f}"
 
 
 def safe_merge_dicts(base_dict, update_dict):
@@ -195,7 +197,7 @@ def safe_merge_dicts(base_dict, update_dict):
         return update_dict
     base_dict = copy.deepcopy(base_dict)
     for key, value in update_dict.items():
-        if isinstance(value, collections.Mapping):
+        if isinstance(value, collections.abc.Mapping):
             base_dict[key] = safe_merge_dicts(base_dict.get(key, {}), value)
         else:
             base_dict[key] = value
@@ -249,7 +251,7 @@ def import_custom_source(import_source):
     """
 
     # Partially validates if the import_source is in correct format
-    regex = '[\w._]+:[\w._]+' #lib_name:class_name
+    regex = r'[\w._]+:[\w._]+' #lib_name:class_name
     m = re.match(pattern=regex, string=import_source)
     # Partial matches mean that the import will fail
     assert m is not None and m.end() == len(import_source), "*** Failed to import malformed source string: "+import_source
@@ -318,17 +320,23 @@ def make_batch_ph(name : str, n_choices : int):
     from dso.memory import Batch
     from dso.program import Program
 
-    with tf.name_scope(name):
+    with tf.compat.v1.name_scope(name):
         batch_ph = {
-            "actions": tf.placeholder(tf.int32, [None, None]),
-            "obs": tf.placeholder(tf.float32, [None, Program.task.OBS_DIM, None]),
-            "priors": tf.placeholder(tf.float32, [None, None, n_choices]),
-            "lengths": tf.placeholder(tf.int32, [None, ]),
-            "rewards": tf.placeholder(tf.float32, [None], name="r"),
-            "on_policy": tf.placeholder(tf.int32, [None, ])
+            "actions": tf.compat.v1.placeholder(tf.int32, [None, None]),
+            "obs": tf.compat.v1.placeholder(tf.float32, [None, Program.task.OBS_DIM, None]),
+            "priors": tf.compat.v1.placeholder(tf.float32, [None, None, n_choices]),
+            "lengths": tf.compat.v1.placeholder(tf.int32, [None, ]),
+            "rewards": tf.compat.v1.placeholder(tf.float32, [None], name="r"),
+            "on_policy": tf.compat.v1.placeholder(tf.int32, [None, ])
          }
         batch_ph = Batch(**batch_ph)
     return batch_ph
 
 
-
+@contextmanager
+def summary_writer(logdir):
+    """Yields a TF-2 summary writer and ensures it is flushed on exit."""
+    writer = tf.summary.create_file_writer(logdir)
+    with writer.as_default():
+        yield writer
+    writer.flush()

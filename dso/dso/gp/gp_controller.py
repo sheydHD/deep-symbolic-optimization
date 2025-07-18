@@ -173,7 +173,7 @@ class GPController:
         if parallel_eval:
             print("GP Controller using parallel evaluation")
             pool = Pool(cpu_count())
-            print("\t>>> Using {} processes".format(cpu_count()))
+            print(f"\t>>> Using {cpu_count()} processes")
             toolbox.register("cmap", pool.map)
         else:
             toolbox.register("cmap", map)
@@ -289,10 +289,10 @@ class GPController:
         if self.verbose:
             print()
             print("--------------------------------------------------")
-            print("GP Time: {:.6}".format(timer))
+            print(f"GP Time: {timer:.6}")
             print()
-            print("Unique expressions evaluated: {}".format(len(Program.cache)))
-            print("Total expression evaluations: {}".format(self.total_nevals))
+            print(f"Unique expressions evaluated: {len(Program.cache)}")
+            print(f"Total expression evaluations: {self.total_nevals}")
             print("--------------------------------------------------")
             print()
             print("GP -> best program this iteration:")

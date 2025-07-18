@@ -125,7 +125,7 @@ class JointPrior():
         for prior in self.priors:
             name = prior.__class__.__name__
             counts[name] += 1
-            self.names.append("{}-{}".format(name, counts[name]))
+            self.names.append(f"{name}-{counts[name]}")
 
         # Initialize variables for constraint count report
         self.do_count = count_constraints
@@ -169,7 +169,11 @@ class JointPrior():
         ind_priors = [zero_prior.copy() for _ in range(len(self.priors))]
         for i in range(len(self.priors)):
             ind_priors[i] += self.priors[i](unfinished_actions, unfinished_parent, unfinished_sibling, unfinished_dangling)
-        combined_prior = sum(ind_priors) + zero_prior # TBD FIX HACK
+        
+        # Safely sum priors that may contain -np.inf
+        combined_prior = np.sum(ind_priors, axis=0)
+        combined_prior = np.where(np.isneginf(combined_prior), -np.inf, combined_prior)
+
 
         # Count number of constrained tokens per prior
         if self.do_count:
@@ -183,14 +187,14 @@ class JointPrior():
         if np.any(collision_mask):
             collisions = collision_mask.nonzero()[0] # Indices of collisions
             msg = []
-            msg.append("ERROR in {}:".format(__file__))
+            msg.append(f"ERROR in {__file__}:")
             msg.append("Encountered collision(s) in prior. This occurs when a prior contains all -inf values. " +
                        "This typically indicates a logic error in a prior formulation, or a 'collision' when " +
                        "configuring multiple priors that are not always compatible. See the table(s) below " +
                        "for which priors caused each collision. X's indicate a value of -inf.")
             for i, collision in enumerate(collisions):
-                msg.append("\n----- Collision {} of {} -----".format(i + 1, len(collisions)))
-                msg.append("Traversal: {}".format(self.library.tokenize(unfinished_actions[collision])))
+                msg.append(f"\n----- Collision {i + 1} of {len(collisions)} -----")
+                msg.append(f"Traversal: {self.library.tokenize(unfinished_actions[collision])}")
                 table = PrettyTable(["Prior"] + self.library.names)
                 for j, ind_prior in enumerate(ind_priors):
                     if np.any(np.isneginf(ind_prior[collision])):
@@ -211,8 +215,8 @@ class JointPrior():
             return
         print("Constraint counts per prior:")
         for i, count in enumerate(self.constraint_counts):
-            print("{}: {} ({:%})".format(self.names[i], count, count / self.total_tokens))
-        print("All priors: {} ({:%})".format(self.total_constraints, self.total_constraints / self.total_tokens))
+            print(f"{self.names[i]}: {count} ({count / self.total_tokens:%})")
+        print(f"All priors: {self.total_constraints} ({self.total_constraints / self.total_tokens:%})")
 
     def describe(self):
         message = "\n".join(prior.describe() for prior in self.priors)
@@ -248,17 +252,29 @@ class JointPrior():
         dangling = np.ones(B)
         for t in range(1, T): # For each time step
             # Update dangling based on previously sampled token
-            dangling += self.library.arities[actions[:, (t - 1)]] - 1
-            for i in range(len(self.priors)): # For each Prior
-                # Compute the ith Prior at time step t
-                prior = self.priors[i](actions[:, :t],
-                                       parent[:, t],
-                                       sibling[:, t],
-                                       dangling) # Shape (batch, L)
-                ind_priors[i][:, t, :] += prior
+            action_t = actions[:, t-1]
+            arity_t = self.library.arities[action_t]
+            dangling += arity_t - 1
 
-        # Combine all Priors
-        combined_prior = sum(ind_priors) + zero_prior
+            parent_t = parent[:, t]
+            sibling_t = sibling[:, t]
+            actions_t = actions[:, :t]
+
+            # Compute combined prior for this time step
+            # Let's not worry about finished sequences for now...
+            prior_t = np.zeros((B, self.L), dtype=np.float32)
+            for i in range(len(self.priors)):
+                # Note: after t=1, ind_priors[0] is all zeros
+                prior_t += self.priors[i](actions_t, parent_t, sibling_t, dangling)
+
+            # Update all individual priors
+            # TBD: This doesn't seem right.
+            for i in range(len(self.priors)):
+                ind_priors[i][:, t, :] = prior_t
+
+        # Safely sum priors that may contain -np.inf
+        combined_prior = np.sum(ind_priors, axis=0)
+        combined_prior = np.where(np.isneginf(combined_prior), -np.inf, combined_prior)
 
         return combined_prior
 
@@ -338,7 +354,7 @@ class Prior():
     def describe(self):
         """Describe the Prior."""
 
-        return "{}: No description available.".format(self.__class__.__name__)
+        return f"{self.__class__.__name__}: No description available."
 
 
 class Constraint(Prior):
@@ -397,7 +413,7 @@ class Constraint(Prior):
 
         caller          = inspect.getframeinfo(inspect.stack()[1][0])
 
-        warnings.warn("{} ({}) {} : Using a slower version of constraint for Deap. You should write your own.".format(caller.filename, caller.lineno, type(self).__name__))
+        warnings.warn(f"{caller.filename} ({caller.lineno}) {type(self).__name__} : Using a slower version of constraint for Deap. You should write your own.")
 
         assert len(actions.shape) == 2, "Only takes in one action at a time since this is how Deap will use it."
         assert actions.shape[0] == 1, "Only takes in one action at a time since this is how Deap will use it."
@@ -568,7 +584,7 @@ class TrigConstraint(RelationalConstraint):
     def __init__(self, library):
         targets = library.trig_tokens
         effectors = library.trig_tokens
-        super(TrigConstraint, self).__init__(library=library,
+        super().__init__(library=library,
                                              targets=targets,
                                              effectors=effectors,
                                              relationship="descendant")
@@ -589,7 +605,7 @@ class ConstConstraint(RelationalConstraint):
         effectors = np.concatenate([library.unary_tokens,
                                     library.binary_tokens])
 
-        super(ConstConstraint, self).__init__(library=library,
+        super().__init__(library=library,
                                               targets=targets,
                                               effectors=effectors,
                                               relationship="uchild")
@@ -626,7 +642,7 @@ class NoInputsConstraint(Constraint):
         return bool(np.isin(tokens, actions).sum() == 0)
 
     def describe(self):
-        message = "{}: Sequences contain at least one input variable Token.".format(self.__class__.__name__)
+        message = f"{self.__class__.__name__}: Sequences contain at least one input variable Token."
         return message
 
 
@@ -667,7 +683,7 @@ class InverseUnaryConstraint(Constraint):
 
     def describe(self):
         message = [prior.describe() for prior in self.priors]
-        return "\n{}: ".format(self.__class__.__name__).join(message)
+        return f"\n{self.__class__.__name__}: ".join(message)
 
 
 class RepeatConstraint(Constraint):
@@ -690,7 +706,7 @@ class RepeatConstraint(Constraint):
 
         Prior.__init__(self, library)
         assert min_ is not None or max_ is not None, \
-            "{}: At least one of (min_, max_) must not be None.".format(self.__class__.__name__)
+            f"{self.__class__.__name__}: At least one of (min_, max_) must not be None."
         self.min = min_
         self.max = max_
         self.tokens = library.actionize(tokens)
@@ -791,9 +807,9 @@ class LengthConstraint(Constraint):
         message = []
         indent = " " * len(self.__class__.__name__) + "  "
         if self.min is not None:
-            message.append("{}: Sequences have minimum length {}.".format(self.__class__.__name__, self.min))
+            message.append(f"{self.__class__.__name__}: Sequences have minimum length {self.min}.")
         if self.max is not None:
-            message.append(indent + "Sequences have maximum length {}.".format(self.max))
+            message.append(indent + f"Sequences have maximum length {self.max}.")
         message = "\n".join(message)
         return message
 
@@ -903,7 +919,7 @@ class DomainRangeConstraint(Constraint):
     def describe(self):
         message = []
         indent = " " * len(self.__class__.__name__) + "  "
-        message.append("{}: First token's range must contain [min(y), max(y)].".format(self.__class__.__name__))
+        message.append(f"{self.__class__.__name__}: First token's range must contain [min(y), max(y)].")
         message.append(indent + "Input variable domains must be contained in unary parent domains.")
         message = "\n".join(message)
         return message
@@ -942,7 +958,7 @@ class UniformArityPrior(Prior):
     def describe(self):
         """Describe the Prior."""
 
-        return "{}: Activated.".format(self.__class__.__name__)
+        return f"{self.__class__.__name__}: Activated."
 
 
 class SoftLengthPrior(Prior):
@@ -957,7 +973,7 @@ class SoftLengthPrior(Prior):
         self.loc = loc
         self.scale = scale
 
-        self.terminal_mask = np.zeros((self.L,), dtype=np.bool)
+        self.terminal_mask = np.zeros((self.L,), dtype=np.bool_)
         self.terminal_mask[self.library.terminal_tokens] = True
 
         self.nonterminal_mask = ~self.terminal_mask
@@ -1151,7 +1167,7 @@ class MutuallyExclusiveConstraint(Constraint):
 
     def validate(self):
         if len(self.tokens) < 2:
-            return "Length of {} must be at least 2".format(self.tokens)
+            return f"Length of {self.tokens} must be at least 2"
         return None
 
     def is_violated(self, actions, parent, sibling):
@@ -1160,7 +1176,7 @@ class MutuallyExclusiveConstraint(Constraint):
     def describe(self):
         tokens = ", ".join([self.library.names[t] for t in self.tokens])
         message = self.__class__.__name__
-        message += ": Two or more distinct tokens in [{}] cannot appear in the same sequence.".format(tokens)
+        message += f": Two or more distinct tokens in [{tokens}] cannot appear in the same sequence."
         return message
                     
 class PolyConstraint(Constraint):

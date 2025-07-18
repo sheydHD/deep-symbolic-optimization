@@ -90,7 +90,7 @@ def from_str_tokens(str_tokens, skip_cache=False):
                 t = Program.library.const_token
                 constants.append(float(s))
             else:
-                raise ValueError("Did not recognize token {}.".format(s))
+                raise ValueError(f"Did not recognize token {s}.")
             traversal.append(t)
         traversal = np.array(traversal, dtype=np.int32)
     else:
@@ -149,7 +149,7 @@ def from_tokens(tokens, skip_cache=False, on_policy=True, finish_tokens=True):
     if skip_cache or Program.task.stochastic:
         p = Program(tokens, on_policy=on_policy)
     else:
-        key = tokens.tostring()
+        key = tokens.tobytes()
         try:
             p = Program.cache[key]
             if on_policy:
@@ -163,7 +163,7 @@ def from_tokens(tokens, skip_cache=False, on_policy=True, finish_tokens=True):
     return p
 
 
-class Program(object):
+class Program:
     """
     The executable program representing the symbolic expression.
 
@@ -245,7 +245,7 @@ class Program(object):
             self.is_input_var = array.array('i', [t.input_var is not None for t in self.traversal])
 
         self.invalid = False
-        self.str = tokens.tostring()
+        self.str = tokens.tobytes()
         self.tokens = tokens
 
         self.on_policy_count = 1 if on_policy else 0
@@ -504,12 +504,12 @@ class Program(object):
             We will print the most honest reward possible when using validation.
         """
 
-        print("\tReward: {}".format(self.r))
-        print("\tCount Off-policy: {}".format(self.off_policy_count))
-        print("\tCount On-policy: {}".format(self.on_policy_count))
-        print("\tOriginally on Policy: {}".format(self.originally_on_policy))
-        print("\tInvalid: {}".format(self.invalid))
-        print("\tTraversal: {}".format(self))
+        print(f"\tReward: {self.r}")
+        print(f"\tCount Off-policy: {self.off_policy_count}")
+        print(f"\tCount On-policy: {self.on_policy_count}")
+        print(f"\tOriginally on Policy: {self.originally_on_policy}")
+        print(f"\tInvalid: {self.invalid}")
+        print(f"\tTraversal: {self}")
         if self.task.task_type != 'binding':
             print("\tExpression:") 
             print("{}\n".format(indent(self.pretty(), '\t  ')))
@@ -528,7 +528,7 @@ class Program(object):
 capital = ["add", "mul", "pow"]
 
 
-class Node(object):
+class Node:
     """Basic tree class supporting printing"""
 
     def __init__(self, val):
@@ -539,7 +539,7 @@ class Node(object):
         children_repr = ",".join(repr(child) for child in self.children)
         if len(self.children) == 0:
             return self.val # Avoids unnecessary parantheses, e.g. x1()
-        return "{}({})".format(self.val, children_repr)
+        return f"{self.val}({children_repr})"
 
 
 def build_tree(traversal):

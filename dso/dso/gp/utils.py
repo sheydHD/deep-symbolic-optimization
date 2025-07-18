@@ -299,7 +299,7 @@ def create_primitive_set(lib):
     """Create a DEAP primitive set from a dso.libraryLibrary."""
 
     pset = gp.PrimitiveSet("MAIN", len(lib.input_tokens))
-    rename_kwargs = {"ARG{}".format(i): i for i in range(len(lib.input_tokens))}
+    rename_kwargs = {f"ARG{i}": i for i in range(len(lib.input_tokens))}
     for k, v in rename_kwargs.items():
 
         # pset.renameArguments doesn't actually rename the Primitive.
@@ -316,7 +316,7 @@ def create_primitive_set(lib):
             # A zero-arity function, e.g. const or 3.14. This is a terminal, but not an input value like x1.
 
             # We are forced to use a string. Add a t to make it easier to debug naming. 
-            tname = "t{}".format(i)
+            tname = f"t{i}"
             # We don't really care about what is in each terminal since they are place holders within deap.
             # So, we set value to None. Name is all we need here since Program will fill in any values for us later.
             pset.addTerminal(None, name=tname)

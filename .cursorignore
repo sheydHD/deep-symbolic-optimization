@@ -14,3 +14,8 @@ __pycache__/
 build
 .eggs
 dso.eggs-info
+CHANGELOG.md
+LICENSE
+README.md
+mkdocs.yml
+NOTICE

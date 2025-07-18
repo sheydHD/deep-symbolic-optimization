@@ -367,7 +367,7 @@ def make_regression_metric(name, y_train, *args):
     }
 
     assert name in all_metrics, "Unrecognized reward function name."
-    assert len(args) == all_metrics[name][1], "For {}, expected {} reward function parameters; received {}.".format(name,all_metrics[name][1], len(args))
+    assert len(args) == all_metrics[name][1], f"For {name}, expected {all_metrics[name][1]} reward function parameters; received {len(args)}."
     metric = all_metrics[name][0]
 
     # For negative MSE-based rewards, invalid reward is the value of the reward function when y_hat = mean(y)

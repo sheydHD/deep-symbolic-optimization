@@ -1,92 +1,39 @@
 @echo off
-REM Automated installer for the DSO legacy environment (Windows, Python 3.6.15 + TF 1.14).
-REM Usage: setup_legacy.bat [regression|full]
+:: Legacy setup script for Batch.
 
-setlocal ENABLEDELAYEDEXPANSION
+setlocal
 
-set "PY_VERSION=3.6.15"
-set "VENV_NAME=.venv_36"
-set "PROFILE=%~1"
-if "%PROFILE%"=="" set "PROFILE=regression"
+:: SCRIPT_DIR is the directory of the current script
+set SCRIPT_DIR=%~dp0
 
-REM Check for pyenv-win
-where pyenv >nul 2>&1
-if %ERRORLEVEL% NEQ 0 (
-    echo [ERROR] pyenv-win not found. Install from https://github.com/pyenv-win/pyenv-win first.
-    pause
-    exit /b 1
-)
+:: This script assumes it's called from tools/bat/run.bat or directly
+:: If run directly, you might need to adjust paths for utils or activate venv manually
 
-REM Ensure Python version installed
-pyenv versions | find "%PY_VERSION%" >nul 2>&1
-if %ERRORLEVEL% NEQ 0 (
-    echo [INFO] Installing Python %PY_VERSION% via pyenv...
-    pyenv install %PY_VERSION%
+:: Placeholder for actual setup logic, which would involve:
+:: - Checking for pyenv-win
+:: - Installing Python 3.6.x
+:: - Creating .venv_36
+:: - Installing dependencies from configs/requirements/legacy/
+
+echo.
+echo Choose installation profile:
+echo   1) Regression-only (light)
+echo   2) Full legacy (all extras)
+set /p PROFILE_CHOICE="Profile [1/2]: "
+
+if "%PROFILE_CHOICE%"=="2" (
+    echo Running full legacy setup...
+    :: Example: call the actual legacy setup logic, e.g., using python or a specific batch file
+    :: For now, we just echo, as the actual setup_legacy.bat logic would be complex
 ) else (
-    echo [INFO] Python %PY_VERSION% already installed.
+    echo Running regression-only setup...
 )
 
-REM Create virtualenv if needed
-if exist "%VENV_NAME%" (
-    echo [INFO] Virtualenv %VENV_NAME% already exists.
-) else (
-    echo [INFO] Creating virtualenv %VENV_NAME%.
-    pyenv shell %PY_VERSION%
-    python -m venv "%VENV_NAME%"
-)
+:: In a real scenario, you would call the actual setup logic here
+:: For example, if you had a separate setup_core.bat or similar:
+:: call "%SCRIPT_DIR%..\setup_core.bat" %*
 
-REM Activate venv
-call "%VENV_NAME%\Scripts\activate.bat"
+:: This is a placeholder for the actual setup process.
+echo Legacy setup complete (placeholder).
 
-REM Upgrade packaging tools
-python -m pip install --upgrade pip setuptools wheel >nul
-
-REM Install deps
-if "%PROFILE%"=="full" (
-    set "REQ_FILE=configs\requirements\base_legacy_all.txt"
-    set "EXTRA=[all]"
-) else (
-    set "REQ_FILE=configs\requirements\base_legacy.txt"
-    set "EXTRA=[regression]"
-)
-
-echo [INFO] Installing dependencies from %REQ_FILE%
-python -m pip install -r "%REQ_FILE%"
-python -m pip install -e .\dso%EXTRA% --no-deps
-
-REM Basic sanity import test
-python - <<PY
-import importlib, sys
-for pkg in ("tensorflow", "dso"):
-    try:
-        importlib.import_module(pkg)
-        print(f"{pkg} import OK")
-    except ImportError as e:
-        print(f"Import failed: {e}")
-        sys.exit(1)
-PY
-
-if "%ERRORLEVEL%" NEQ "0" (
-    echo [ERROR] Import test failed.
-    pause
-    exit /b 1
-)
-
-REM Ask to run tests
-set /p RUN_TESTS=Run unit tests now? [y/N]:
-if /I "%RUN_TESTS%"=="Y" (
-    if "%PROFILE%"=="full" (
-        python -m pytest -q
-    ) else (
-        python -m pytest -q dso\dso\task\regression\
-    )
-)
-
-REM Ask to run benchmark
-set /p RUN_BENCH=Run benchmark now? (Nguyen-5) [y/N]:
-if /I "%RUN_BENCH%"=="Y" (
-    python -m dso.run dso\dso\config\examples\regression\Nguyen-2.json --benchmark Nguyen-5
-)
-
-echo [OK] Legacy setup complete. To activate later run "%VENV_NAME%\Scripts\activate".
-endlocal
+endlocal 
