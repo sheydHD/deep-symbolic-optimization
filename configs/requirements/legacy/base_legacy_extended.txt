@@ -1,9 +1,0 @@
-# Legacy environment for Python 3.6 compatibility, all extras
-# Includes everything from base + RL-related packages
--r base_legacy.txt
-
-# RL extras
-mpi4py==3.0.3
-gym[box2d]==0.15.4
-stable-baselines[mpi]==2.10.0
-pybullet==2.5.0

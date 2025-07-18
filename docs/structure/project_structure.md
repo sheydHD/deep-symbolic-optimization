@@ -12,13 +12,10 @@ deep-symbolic-optimization/
 │   ├── core.txt
 │   ├── dev.txt
 │   ├── extras.txt
-│   ├── in_files/
-│   │   ├── core.in
-│   │   ├── dev.in
-│   │   └── extras.in
-│   └── legacy/
-│     ├── base_legacy.txt
-│     └── base_legacy_extended.txt
+│   └── in_files/
+│     ├── core.in
+│     ├── dev.in
+│     └── extras.in
 ├── docs/
 │   ├── overview.md
 │   ├── architecture/

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Developer CLI for DSO’s *modern* branch.
+"""Developer CLI for Deep Symbolic Optimization.
 
 Sub-commands:
   setup        – bootstrap / upgrade env (wraps setup_env.py)
@@ -14,7 +14,7 @@ PROJECT = Path(__file__).resolve().parents[2]  # deep-symbolic-optimization/
 sys.path.insert(0, str(PROJECT))               # import dso.* while editable
 
 def _venv_exec(module_args: list[str]) -> None:
-    """Run `python -m <args>` inside the project’s venv if present."""
+    """Run `python -m <args>` inside the project's venv if present."""
     py = PROJECT / ".venv" / "bin" / "python"
     exe = str(py) if py.exists() else sys.executable
     subprocess.run([exe, "-m", *module_args], check=True)

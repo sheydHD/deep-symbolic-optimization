@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Bootstrap or upgrade the *modern* virtual-env (.venv) for Deep Symbolic
+Bootstrap or upgrade the virtual-env (.venv) for Deep Symbolic
 Optimization.  Expects the new requirements trio:
 
     configs/requirements/{core,extras,dev}.in   (sources)
@@ -49,7 +49,7 @@ def compile_if_needed(name: str) -> Path:
 # --------------------------------------------------------------------------- CLI
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(
-        description="Create / upgrade .venv for the modern (TF-2) branch")
+        description="Create / upgrade .venv for Deep Symbolic Optimization")
     ap.add_argument("--fresh", action="store_true",
                     help="Delete any existing .venv first")
     args = ap.parse_args(argv)
@@ -72,7 +72,7 @@ def main(argv: list[str] | None = None) -> None:
     # Install DSO package without extras to avoid version conflicts
     dso_path = PROJECT / "dso"
     run(["uv", "pip", "install", "-e", str(dso_path)])
-    print("\n✓ Modern environment ready — activate with:  source .venv/bin/activate")
+    print("\n✓ Environment ready — activate with:  source .venv/bin/activate")
 
 if __name__ == "__main__":
     main()

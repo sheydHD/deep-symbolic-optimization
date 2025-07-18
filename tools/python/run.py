@@ -7,7 +7,7 @@ Sub-commands
 setup            — bootstrap or upgrade the virtual-env in .venv
 test  [pytest…]  — run dso/test with optional pytest flags
 bench CONFIG     — run benchmark with given JSON config
-menu             — interactive menu if you miss the old style
+menu             — interactive menu
 """
 
 from __future__ import annotations
@@ -67,11 +67,11 @@ def cmd_bench(ns: argparse.Namespace) -> None:
 
 def interactive_menu() -> None:
     while True:
-        print("\n-- Modern DSO Menu --")
+        print("\n-- DSO Menu --")
         print("  1) Setup environment (.venv + uv)")
         print("  2) Run tests")
         print("  3) Run benchmark")
-        print("  4) Back / Quit")
+        print("  4) Quit")
         choice = input("Choice [1-4]: ").strip()
         if   choice == "1": cmd_setup(argparse.Namespace(forward=[]))
         elif choice == "2": cmd_test (argparse.Namespace(forward=[]))

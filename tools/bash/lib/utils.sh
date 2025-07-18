@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Utility helpers for Bash scripts in the DSO project (legacy CLI).
+# Utility helpers for Bash scripts in the DSO project.
 # Provides coloured logging, confirm prompts, and robust path handling.
 
 # Resolve directory of the current script, regardless of symlinks.
