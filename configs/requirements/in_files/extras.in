@@ -1,0 +1,5 @@
+# Extras: control environments & RL helpers
+gymnasium[box2d]>=0.29  # modern Gym fork
+stable-baselines3>=2.3
+pybullet>=3.2
+control>=0.9
