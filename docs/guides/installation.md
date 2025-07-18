@@ -15,27 +15,19 @@
 # Clone repository
 git clone https://github.com/your-org/dso.git && cd dso
 
-# Create & activate virtual environment (uv)
-uv venv .venv
+# Create & activate virtual environment (uv) and install all dependencies
+# This script compiles requirements from .in files and installs the DSO package in editable mode.
+python tools/python/setup/setup.py
+
+# Activate the environment
 source .venv/bin/activate
-
-# Install core dependencies
-uv pip install -r requirements.txt
-
-# Install extras
-uv pip install -r requirements-control.txt   # RL/control tasks
-```
-
-## Editable Install
-
-```bash
-uv pip install -e .  # Editable mode; reflects local changes immediately
 ```
 
 ## Test the Setup
 
 ```bash
-pytest -q tests/
+# Run all tests
+pytest -q dso/dso/test/
 ```
 
 If all tests pass, you are ready to go!

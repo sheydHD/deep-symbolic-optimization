@@ -6,41 +6,56 @@ This quick guide walks you through training a symbolic regression model on the c
 
 ## 1. Install & Activate Environment
 
-See [`installation.md`](installation.md) if you haven't set up DSO yet.
+First, ensure you have set up your environment as described in [`installation.md`](installation.md).
+
+Then, activate your virtual environment:
 
 ```bash
 source .venv/bin/activate
 ```
 
-## 2. Run the Example
+## 2. Run the Example Benchmark
+
+To run a symbolic regression benchmark with the Nguyen-2 dataset, use the following command:
 
 ```bash
-python -m dso.run \
-    --config dso/config/examples/regression/Nguyen-2.json \
-    --output runs/nguyen2
+python tools/python/benchmark/benchmark.py dso/dso/config/examples/regression/Nguyen-2.json
 ```
 
-The script will:
+This command will:
 
-1. Parse the JSON config.
-2. Build the search space.
-3. Launch training for the configured number of iterations.
+1. Parse the JSON config file for Nguyen-2.
+2. Build the search space and launch the training process.
 
-Logs and checkpoints are stored under `runs/nguyen2/`.
+Logs and checkpoints will be stored in a timestamped directory (e.g., `log/regression_YYYY-MM-DD_HH-MM-SS/`).
 
 ## 3. Visualise the Result
+
+After a successful run, you can inspect the best found program:
 
 ```python
 from dso import DeepSymbolicOptimizer
 import json
+import os
 
-with open('runs/nguyen2/best_program.json') as f:
+# Replace with the actual path to your latest run directory
+latest_run_dir = "log/regression_YYYY-MM-DD_HH-MM-SS" # Update this path
+
+with open(os.path.join(latest_run_dir, 'best_program.json')) as f:
     prog = DeepSymbolicOptimizer.load(json.load(f)['program'])
 print(prog.sympy_expr)
 ```
 
-## 4. Next Steps
+## 4. Run Tests
 
-- Explore other datasets in `dso/task/regression/data/`.
-- Tweak the search space via `dso/scripts/search_space.py`.
+To verify your setup and the codebase integrity, run the unit tests:
+
+```bash
+pytest -q dso/dso/test/
+```
+
+## 5. Next Steps
+
+- Explore other datasets in `dso/dso/task/regression/data/`.
+- Tweak the search space via `dso/dso/scripts/search_space.py`.
 - Read the [Architecture Overview](../architecture/overview.md) to understand the algorithm internals.
