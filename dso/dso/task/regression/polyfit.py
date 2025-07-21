@@ -193,7 +193,10 @@ class DSOLassoRegressor(PolyRegressorMixin):
     def dual_lasso(self, XtX_inv, X_pinv, n_obs, n_params, y):
         # compute program parameters
         beta_LS = np.matmul(X_pinv, y)  # least squares solution
-        rho_bnd = n_obs/n_params * np.var(y) * self.gamma_
+        y_var = np.var(y)
+        if y_var == 0:
+            return beta_LS
+        rho_bnd = n_obs/n_params * y_var * self.gamma_
 
         # currently only scipy.minimize is supported as the solver
         # objective function and derivatives

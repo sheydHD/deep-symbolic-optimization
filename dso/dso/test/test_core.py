@@ -1,7 +1,5 @@
 """Test cases for DeepSymbolicOptimizer on each Task."""
 
-from pkg_resources import resource_filename
-
 import pytest
 import tensorflow as tf
 import numpy as np
@@ -18,45 +16,11 @@ def model():
     return DeepSymbolicOptimizer(config)
 
 
-@pytest.fixture(params=("strong", "weak"))
-def cached_results(model, request):
-    """
-    Mock fixture to provide cached results without loading old checkpoints.
-    
-    This is a replacement for the original fixture that loaded TF 1.x checkpoints,
-    which are incompatible with TF 2.x. Instead, we create dummy results that
-    have the same structure but with random values.
-    """
-    # Create random values for trainable variables
-    # This avoids loading incompatible TF 1.x checkpoints
-    model.setup()
-    results = []
-    
-    # Get all trainable variables
-    trainable_vars = model.sess.run(tf.compat.v1.trainable_variables())
-    
-    # Create random values with same shapes
-    for var in trainable_vars:
-        # Use deterministic random values based on the parameter
-        if request.param == "strong":
-            # Use values close to 1.0
-            results.append(np.ones_like(var) * 0.9 + np.random.rand(*var.shape) * 0.2)
-        else:
-            # Use values close to 0.0
-            results.append(np.zeros_like(var) + np.random.rand(*var.shape) * 0.2)
-    
-    return [request.param, results]
-
-
 @pytest.mark.parametrize("config", ["dso/config/config_regression.json",
                                     "dso/config/config_control.json"])
 def test_task(model, config):
     """Test that Tasks do not crash for various configs."""
     
-    # Skip control tests as they need extensive updates for newer Gymnasium API
-    if "control" in config:
-        pytest.skip(f"Skipping {config} as it requires extensive updates for newer Gymnasium API")
-        
     try:
         config = load_config(config)
     except FileNotFoundError:

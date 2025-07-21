@@ -46,7 +46,7 @@ def cmd_test(ns: argparse.Namespace) -> None:
     target = PROJECT / "dso" / "dso" / "test"
     # Change to project directory to ensure relative imports work
     os.chdir(PROJECT)
-    run([python_exe(), "-m", "pytest", str(target), "-q"] + ns.forward)
+    run([python_exe(), "-m", "pytest", str(target), "-q", "-rs"] + ns.forward)
 
 def cmd_bench(ns: argparse.Namespace) -> None:
     # Check if config file exists

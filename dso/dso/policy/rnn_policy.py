@@ -10,7 +10,7 @@ from dso.memory import Batch
 from dso.policy import Policy
 from dso.utils import make_batch_ph
 
-class LinearWrapper(tf.keras.layers.AbstractRNNCell):
+class LinearWrapper(tf.compat.v1.nn.rnn_cell.RNNCell):
     """RNNCell wrapper that adds a linear layer to the output."""
 
     def __init__(self, cell, output_size, **kwargs):
@@ -26,10 +26,8 @@ class LinearWrapper(tf.keras.layers.AbstractRNNCell):
     def state_size(self):
         return self.cell.state_size
 
-    def get_initial_state(self, inputs=None, batch_size=None, dtype=None):
-        return self.cell.get_initial_state(
-            inputs=inputs, batch_size=batch_size, dtype=dtype
-        )
+    def zero_state(self, batch_size, dtype):
+        return self.cell.zero_state(batch_size, dtype)
 
     def call(self, inputs, state):
         outputs, state = self.cell(inputs, state)
@@ -45,6 +43,28 @@ def safe_cross_entropy(p, logq, axis=-1):
     safe_logq = tf.compat.v1.where(tf.equal(p, 0.), tf.ones_like(logq), logq)
     # Safely compute the product
     return - tf.reduce_sum(p * safe_logq, axis)
+
+class KerasCellWrapper(tf.compat.v1.nn.rnn_cell.RNNCell):
+    """
+    Wrapper that allows Keras cells to be used with TF1 APIs.
+    """
+    def __init__(self, cell):
+        super().__init__()
+        self.cell = cell
+
+    @property
+    def state_size(self):
+        return self.cell.state_size
+
+    @property
+    def output_size(self):
+        return self.cell.output_size
+
+    def zero_state(self, batch_size, dtype):
+        return self.cell.get_initial_state(batch_size=batch_size, dtype=dtype)
+
+    def call(self, inputs, state):
+        return self.cell(inputs, state)
 
 class RNNPolicy(Policy):
     """Recurrent neural network (RNN) policy used to generate expressions.
@@ -134,9 +154,11 @@ class RNNPolicy(Policy):
 
             def make_cell(name, num_units, initializer):
                 if name == 'lstm':
-                    return tf.compat.v1.nn.rnn_cell.LSTMCell(num_units, initializer=initializer)
+                    cell = tf.keras.layers.LSTMCell(num_units, kernel_initializer=initializer)
+                    return KerasCellWrapper(cell)
                 if name == 'gru':
-                    return tf.compat.v1.nn.rnn_cell.GRUCell(num_units, kernel_initializer=initializer, bias_initializer=initializer)
+                    cell = tf.keras.layers.GRUCell(num_units, kernel_initializer=initializer, bias_initializer=initializer)
+                    return KerasCellWrapper(cell)
                 raise ValueError(f"Did not recognize cell type '{name}'")
 
             # Create recurrent cell
@@ -167,7 +189,7 @@ class RNNPolicy(Policy):
                     finished = tf.zeros(shape=[self.batch_size], dtype=tf.bool)
                     obs = initial_obs
                     next_input = state_manager.get_tensor_input(obs)
-                    next_cell_state = cell.get_initial_state(batch_size=self.batch_size, dtype=tf.float32) # 2-tuple, each shape (?, num_units)
+                    next_cell_state = cell.zero_state(batch_size=self.batch_size, dtype=tf.float32) # 2-tuple, each shape (?, num_units)
                     emit_output = None
                     actions_ta = tf.TensorArray(dtype=tf.int32, size=0, dynamic_size=True, clear_after_read=False) # Read twice
                     obs_ta = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=True)

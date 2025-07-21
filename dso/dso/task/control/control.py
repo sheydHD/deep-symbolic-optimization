@@ -205,6 +205,7 @@ class ControlTask(HierarchicalTask):
         
         # Store the episode_seed_shift
         self.episode_seed_shift = episode_seed_shift
+        self.success_score = kwargs.get("success_score", 999999.0)
         
         # Initialize variable dictionary and state variables
         self.var_dict = {}
@@ -293,7 +294,7 @@ class ControlTask(HierarchicalTask):
         Program.library = self.library
 
         # Initialize state variables
-        self.state_vars = [self.library.parameters[f"x{i+1}"] for i in range(n_input_var)]
+        self.state_vars = [token for token in self.library.tokens if token.input_var is not None]
 
         # Configuration assertions
         assert len(self.env.observation_space.shape) == 1, \
@@ -332,27 +333,19 @@ class ControlTask(HierarchicalTask):
 
             # During evaluation, always use the same seeds
             if evaluate:
-                try:
-                    # Modern Gymnasium API
-                    self.env.reset(seed=i)
-                except TypeError:
-                    # Legacy API fallback
-                    self.env.seed(i)
+                obs = self.env.reset(seed=i)
             elif self.fix_seeds:
                 seed = i + (self.episode_seed_shift * 100) + REWARD_SEED_SHIFT
-                try:
-                    # Modern Gymnasium API
-                    self.env.reset(seed=seed)
-                except TypeError:
-                    # Legacy API fallback
-                    self.env.seed(seed)
-            obs = self.env.reset()
+                obs = self.env.reset(seed=seed)
+            else:
+                obs = self.env.reset()
+
             done = False
             # Run the episode
             step = 0
             while not done and step < self.max_episode_steps:
                 # Get the action from the program
-                action = self.get_action(obs, p)
+                action = self.action(p, obs)
 
                 # Take a step in the environment
                 obs, r, terminated, truncated, _ = self.env.step(action)
@@ -397,68 +390,3 @@ class ControlTask(HierarchicalTask):
             "success" : success
         }
         return info
-
-    def get_action(self, obs, p):
-        """Get action from program.
-
-        Parameters
-        ----------
-        obs : ndarray
-            Observation from the environment.
-
-        p : Program
-            Program representing the controller.
-
-        Returns
-        -------
-        action : ndarray
-            Action to take in the environment.
-        """
-        # Update the observation variables
-        self.var_dict.update({var.name: obs[i] for i, var in enumerate(self.state_vars)})
-
-        action_vals = []
-        for a in self.action_vars:
-            # Reference vars by name to make positional assertions
-            result = p.execute(self.var_dict, 
-                            a.name, 
-                            simplify=False, 
-                            debug=True)
-
-            # Constrain to range [-1, 1]
-            result = np.clip(result, -1.0, 1.0)
-            action_vals.append(result)
-            
-        action = np.array(action_vals)
-        return action
-
-    def get_action_old(self, p, obs):
-        """Get action from program (deprecated, use get_action instead).
-
-        Parameters
-        ----------
-        p : Program
-            Program representing the controller.
-
-        obs : ndarray
-            Observation from the environment.
-
-        Returns
-        -------
-        action : ndarray
-            Action to take in the environment.
-        """
-        self.var_dict.update({var.name: obs[i] for i, var in enumerate(self.state_vars)})
-
-        action_vals = []
-        for a in self.action_vars:
-            # Reference vars by name to make positional assertions
-            result = p.execute(self.var_dict, 
-                           a.name, 
-                           simplify=False, 
-                           debug=True)
-
-            # Constrain to range [-1, 1]
-            result = np.clip(result, -1.0, 1.0)
-            action_vals.append(result)
-        return np.array(action_vals)

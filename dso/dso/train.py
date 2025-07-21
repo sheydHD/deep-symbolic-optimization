@@ -354,7 +354,7 @@ class Trainer():
                 quantile = weighted_quantile(values=combined_r, weights=combined_w, q=1 - self.epsilon)
 
             else: # Empirical quantile
-                quantile = np.quantile(r, 1 - self.epsilon, interpolation="higher")
+                quantile = np.quantile(r, 1 - self.epsilon, method="higher")
 
             # Filter quantities whose reward >= quantile
             keep = r >= quantile

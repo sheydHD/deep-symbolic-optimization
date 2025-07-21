@@ -3,7 +3,7 @@
 import os
 import ast
 import itertools
-from pkg_resources import resource_filename
+from importlib import resources
 import zlib
 
 import click
@@ -56,7 +56,7 @@ class BenchmarkDataset:
 
         # Load benchmark data
         if root is None:
-            root = resource_filename("dso.task", "regression")
+            root = os.fspath(resources.files("dso.task").joinpath("regression"))
         benchmark_path = os.path.join(root, benchmark_source)
         benchmark_df = pd.read_csv(benchmark_path, index_col=0, encoding="ISO-8859-1")
         row = benchmark_df.loc[name]
@@ -301,7 +301,7 @@ class BenchmarkDataset:
 def main(benchmark_source, plot, save_csv, sweep):
     """Plots all benchmark expressions."""
 
-    regression_path = resource_filename("dso.task", "regression/")
+    regression_path = resources.files("dso.task").joinpath("regression")
     benchmark_path = os.path.join(regression_path, benchmark_source)
     save_dir = os.path.join(regression_path, 'log')
     df = pd.read_csv(benchmark_path, encoding="ISO-8859-1")

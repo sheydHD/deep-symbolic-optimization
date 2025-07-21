@@ -1,6 +1,6 @@
 """Generate model parity test case data for DeepSymbolicOptimizer."""
-
-from pkg_resources import resource_filename
+from importlib import resources
+import os
 
 import tensorflow as tf
 import click
@@ -42,7 +42,7 @@ def main(stringency):
     model.train()
 
     # Save the TF model
-    tf_save_path = resource_filename("dso.test", "data/test_model" + suffix)
+    tf_save_path = os.fspath(resources.files('dso.test').joinpath('data', 'test_model' + suffix))
     saver = tf.compat.v1.train.Saver()
     saver.save(model.sess, tf_save_path)
 
