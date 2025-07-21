@@ -27,7 +27,13 @@ def run(cmd: list[str], **kw) -> None:
     subprocess.run(cmd, check=True, **kw)
 
 def python_exe() -> str:
-    venv_py = PROJECT / ".venv" / "bin" / "python"
+    """Return path to python executable, preferring .venv."""
+    # On Windows, the executable is in .venv/Scripts/python.exe
+    # On other systems, it's in .venv/bin/python
+    if sys.platform == "win32":
+        venv_py = PROJECT / ".venv" / "Scripts" / "python.exe"
+    else:
+        venv_py = PROJECT / ".venv" / "bin" / "python"
     return str(venv_py) if venv_py.exists() else sys.executable
 
 # --------------------------------------------------------------------------- sub-commands
@@ -35,12 +41,27 @@ def cmd_setup(ns: argparse.Namespace) -> None:
     setup_path = TOOLS_DIR / "setup" / "setup.py"
     # Change to project directory for setup
     os.chdir(PROJECT)
-    run([python_exe(), str(setup_path)] + ns.forward)
-    
-    # If we just created the venv, re-exec this script inside it
-    if (PROJECT / ".venv" / "bin" / "python").exists():
-        os.execv(str(PROJECT / ".venv" / "bin" / "python"),
-                 [str(PROJECT / ".venv" / "bin" / "python"), *sys.argv])
+    current_python = python_exe()
+    run([current_python, str(setup_path)] + ns.forward)
+
+    # If we just created the venv, re-exec this script inside it.
+    # This ensures that subsequent commands use the venv's python.
+    # Note: os.execv is not available on Windows, so we use subprocess.run
+    # and sys.exit to achieve a similar effect.
+    new_python = python_exe()
+    if new_python != current_python:
+        print("🚀 Re-launching in new virtual environment…")
+        try:
+            # On non-Windows, we can replace the current process
+            if sys.platform != "win32":
+                os.execv(new_python, [new_python, *sys.argv])
+            # On Windows, we spawn a new process and exit
+            else:
+                subprocess.run([new_python, *sys.argv], check=True)
+                sys.exit(0) # Exit current script
+        except Exception as e:
+            print(f"Error re-launching script: {e}")
+            sys.exit(1)
 
 def cmd_test(ns: argparse.Namespace) -> None:
     target = PROJECT / "dso" / "dso" / "test"

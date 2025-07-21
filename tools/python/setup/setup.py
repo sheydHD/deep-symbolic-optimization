@@ -72,7 +72,13 @@ def main(argv: list[str] | None = None) -> None:
     # Install DSO package without extras to avoid version conflicts
     dso_path = PROJECT / "dso"
     run(["uv", "pip", "install", "-e", str(dso_path)])
-    print("\n✓ Environment ready — activate with:  source .venv/bin/activate")
+
+    # Show platform-specific activation command
+    if sys.platform == "win32":
+        activate_cmd = "call .venv\Scripts\activate.bat"
+    else:
+        activate_cmd = "source .venv/bin/activate"
+    print(f"\n✓ Environment ready — activate with:  {activate_cmd}")
 
 if __name__ == "__main__":
     main()
