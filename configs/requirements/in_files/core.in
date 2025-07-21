@@ -12,5 +12,5 @@ commentjson>=0.9
 pyyaml>=6.0
 prettytable>=3.9
 tensorflow
-tensorflow-addons
+tensorflow-addons==0.21.0
 seaborn>=0.12  # Required for plotting in logeval.py
