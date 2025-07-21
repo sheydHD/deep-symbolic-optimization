@@ -1,5 +1,7 @@
-# Extras: control environments & RL helpers
 gymnasium[box2d]>=0.29  # modern Gym fork
 stable-baselines3>=2.3
 pybullet>=3.2
 control>=0.9
+
+# The following package is Linux-only
+# nvidia-cufile-cu12==1.11.1.6 ; platform_system != "Windows"
