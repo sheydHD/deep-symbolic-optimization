@@ -1,16 +1,18 @@
 # Core runtime dependencies for Deep Symbolic Optimization
-numpy>=1.23
-numba>=0.57
-sympy>=1.12
-pandas>=1.5
-scikit-learn>=1.4
-click>=8.1
-deap>=1.4
-pathos>=0.3
-tqdm>=4.66
-commentjson>=0.9
-pyyaml>=6.0
-prettytable>=3.9
+click
+colorama
+commentjson
+deap
+dill
+numba
+numpy==1.26.0
+pandas
+pathos
+prettytable
+pyyaml
+scikit-learn
+seaborn
+sympy
+tqdm
 tensorflow
-tensorflow-addons==0.21.0
-seaborn>=0.12  # Required for plotting in logeval.py
+tensorflow-addons
