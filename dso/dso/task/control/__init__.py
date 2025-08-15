@@ -1,14 +1,9 @@
 import warnings
-import gymnasium as gym
+import gymnasium
 from gymnasium.envs.registration import register
 
 from dso.task.control.envs.continuous_cartpole import CustomCartPoleContinuous
 from dso.task.control.envs.lander import LunarLanderMultiDiscrete
-
-try:
-    import pybullet_envs
-except ImportError as e:
-    warnings.warn(f"pybullet_envs could not be imported or registered: {e}")
 
 # Register custom environments
 register(

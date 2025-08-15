@@ -83,8 +83,9 @@ class ContactDetector(contactListener):
 class CustomLunarLander(gym.Env, EzPickle):
     metadata = {
         'render.modes': ['human', 'rgb_array'],
-        'video.frames_per_second' : FPS
-    }
+        'video.frames_per_second' : FPS,
+        'render_modes': ['human', 'rgb_array']
+    }   
 
     """
     Class for a customized Lunar Lander environment. Allows to alter reward shaping and set the action space with an argument.

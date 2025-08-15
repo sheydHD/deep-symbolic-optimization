@@ -12,7 +12,7 @@ import os
 import click
 import pandas as pd
 import seaborn as sns
-import commentjson as json
+import json5 as json
 from matplotlib import pyplot as plt
 
 class LogEval():

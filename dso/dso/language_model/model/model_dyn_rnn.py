@@ -1,11 +1,42 @@
 """Model architecture of default (saved) LanguageModel"""
 
 import tensorflow as tf
-import tensorflow_addons as tfa
 tf.compat.v1.disable_v2_behavior()
 
 # rnn = tf.nn.rnn_cell
 from tensorflow.compat.v1 import nn
+
+def sequence_loss(logits, targets, weights,
+                  average_across_timesteps=True, average_across_batch=True,
+                  softmax_loss_function=None, name=None):
+    with tf.compat.v1.name_scope(name, "sequence_loss", [logits, targets, weights]):
+        num_classes = tf.shape(logits)[2]
+        logits_flat = tf.reshape(logits, [-1, num_classes])
+        targets = tf.reshape(targets, [-1])
+        if softmax_loss_function is None:
+            crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
+                labels=targets, logits=logits_flat)
+        else:
+            crossent = softmax_loss_function(labels=targets, logits=logits_flat)
+        crossent *= tf.reshape(weights, [-1])
+        if average_across_timesteps and average_across_batch:
+            crossent = tf.reduce_sum(crossent)
+            total_size = tf.reduce_sum(weights)
+            total_size += 1e-12 
+            crossent /= total_size
+        elif average_across_timesteps and not average_across_batch:
+            crossent = tf.reduce_sum(crossent, axis=[1])
+            total_size = tf.reduce_sum(weights, axis=[1])
+            total_size += 1e-12
+            crossent /= total_size
+        elif not average_across_timesteps and average_across_batch:
+            crossent = tf.reduce_sum(crossent, axis=[0])
+            total_size = tf.reduce_sum(weights, axis=[0])
+            total_size += 1e-12
+            crossent /= total_size
+        else:
+            crossent = tf.reshape(crossent, tf.shape(targets))
+    return crossent
 
 class LanguageModel:
     def __init__(self, vocabulary_size, embedding_size, num_layers, num_hidden, mode='train'):
@@ -61,7 +92,7 @@ class LanguageModel:
             elif mode == "predict":
                 target = self.x[:, :]
 
-            self.loss = tfa.seq2seq.sequence_loss(
+            self.loss = sequence_loss(
                 logits=self.logits,
                 targets=target,
                 weights=tf.sequence_mask(self.seq_len, tf.shape(self.x)[1] - 2, dtype=tf.float32),

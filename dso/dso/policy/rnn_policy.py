@@ -1,7 +1,6 @@
 """Controller used to generate distribution over hierarchical, variable-length objects."""
 import tensorflow as tf
 import numpy as np
-import tensorflow_addons as tfa
 
 from dso.program import Program
 from dso.program import _finish_tokens

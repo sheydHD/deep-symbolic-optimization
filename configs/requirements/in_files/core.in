@@ -1,7 +1,7 @@
 # Core runtime dependencies for Deep Symbolic Optimization
 click
 colorama
-commentjson
+json5
 deap
 dill
 numba
@@ -15,4 +15,3 @@ seaborn
 sympy
 tqdm
 tensorflow
-tensorflow-addons

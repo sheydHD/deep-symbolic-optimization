@@ -1,6 +1,6 @@
 import os
 
-import commentjson as json
+import json5 as json
 
 from dso.utils import safe_merge_dicts
 

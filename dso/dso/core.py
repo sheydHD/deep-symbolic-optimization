@@ -14,7 +14,7 @@ from datetime import datetime
 import numpy as np
 import tensorflow as tf
 tf.compat.v1.disable_v2_behavior()
-import commentjson as json
+import json5 as json
 
 from dso.task import set_task
 from dso.train import Trainer
