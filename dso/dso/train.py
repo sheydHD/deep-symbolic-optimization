@@ -5,21 +5,14 @@ import json
 import time
 from itertools import compress
 
-import tensorflow as tf
-tf.compat.v1.disable_v2_behavior()
+# Import TensorFlow with optimized configuration
+from dso.tf_config import tf
 import numpy as np
 
 from dso.program import Program, from_tokens
 from dso.utils import empirical_entropy, get_duration, weighted_quantile, pad_action_obs_priors
 from dso.memory import Batch, make_queue
 from dso.variance import quantile_variance
-
-# Ignore TensorFlow warnings
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
-
-# Set TensorFlow seed
-tf.random.set_seed(0)
 
 
 # Work for multiprocessing pool: compute reward

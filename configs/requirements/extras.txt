@@ -90,8 +90,6 @@ pandas==2.3.1
     # via stable-baselines3
 pillow==11.3.0
     # via matplotlib
-pybullet==3.2.7
-    # via -r configs/requirements/in_files/extras.in
 pygame==2.6.1
     # via gymnasium
 pyparsing==3.2.3

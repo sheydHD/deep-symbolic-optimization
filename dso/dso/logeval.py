@@ -4,7 +4,7 @@ import warnings
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 warnings.filterwarnings('ignore', category=FutureWarning)
 
-from pkg_resources import resource_filename
+# pkg_resources is deprecated, removed unused import
 import re
 import glob
 import os

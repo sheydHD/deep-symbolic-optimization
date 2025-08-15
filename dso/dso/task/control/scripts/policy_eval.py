@@ -21,7 +21,22 @@ import subprocess
 from datetime import datetime
 import time
 
-from pkg_resources import resource_filename
+try:
+    # Modern Python 3.9+ approach
+    from importlib.resources import files
+    def get_resource_path(package, resource):
+        return str(files(package) / resource)
+except ImportError:
+    # Fallback for older Python versions
+    try:
+        from importlib_resources import files
+        def get_resource_path(package, resource):
+            return str(files(package) / resource)
+    except ImportError:
+        # Final fallback to deprecated pkg_resources
+        from pkg_resources import resource_filename
+        def get_resource_path(package, resource):
+            return resource_filename(package, resource)
 
 import dso.task.control.utils as U
 from dso.program import Program, from_str_tokens
@@ -116,7 +131,7 @@ class Model():
 
     def load_model(self, env_name):
         if self.alg != "symbolic":
-            env_models_path = os.path.join(resource_filename("dso.task", "control"), "data", env_name)
+            env_models_path = os.path.join(get_resource_path("dso.task", "control"), "data", env_name)
             alg_models = glob.glob(f"{env_models_path}/*-{self.alg.lower()}.*")
             if len(alg_models) == 0:
                 print(f"WARNING: No '{self.alg.upper()}' model available for '{env_name}'!")

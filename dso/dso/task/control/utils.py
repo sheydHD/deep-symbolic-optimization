@@ -1,7 +1,22 @@
 """Utility functions for control task."""
 
 import os
-from pkg_resources import resource_filename
+try:
+    # Modern Python 3.9+ approach
+    from importlib.resources import files
+    def get_resource_path(package, resource):
+        return str(files(package) / resource)
+except ImportError:
+    # Fallback for older Python versions
+    try:
+        from importlib_resources import files
+        def get_resource_path(package, resource):
+            return str(files(package) / resource)
+    except ImportError:
+        # Final fallback to deprecated pkg_resources
+        from pkg_resources import resource_filename
+        def get_resource_path(package, resource):
+            return resource_filename(package, resource)
 
 from datetime import datetime
 from glob import glob
@@ -115,7 +130,7 @@ def load_model(algorithm, model_path):
 def load_default_model(env_name):
 
     # Find default algorithm and model path for the environment
-    task_root = resource_filename("dso.task", "control")
+    task_root = get_resource_path("dso.task", "control")
     root = os.path.join(task_root, "data", env_name)
     files = os.listdir(root)
     for f in files:

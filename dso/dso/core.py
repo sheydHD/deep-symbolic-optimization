@@ -12,8 +12,8 @@ from time import time
 from datetime import datetime
 
 import numpy as np
-import tensorflow as tf
-tf.compat.v1.disable_v2_behavior()
+# Import TensorFlow with optimized configuration
+from dso.tf_config import tf
 import json5 as json
 
 from dso.task import set_task

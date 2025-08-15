@@ -305,8 +305,6 @@ protobuf==4.25.8
     # via
     #   tensorboard
     #   tensorflow
-pybullet==3.2.7
-    # via -r configs/requirements/in_files/extras.in
 pycodestyle==2.14.0
     # via flake8
 pycparser==2.22

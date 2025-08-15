@@ -1,12 +1,34 @@
 """Class for Prior object."""
 import warnings
 import inspect
+import os
+import re
 from collections import defaultdict
 from copy import deepcopy
 
 import numpy as np
+
 import pandas as pd
 from prettytable import PrettyTable
+
+# Configure prior warnings to show only once per constraint type
+# Can be controlled via environment variable DSO_SUPPRESS_PRIOR_WARNINGS
+_SUPPRESS_PRIOR_WARNINGS = os.environ.get('DSO_SUPPRESS_PRIOR_WARNINGS', 'false').lower() == 'true'
+_PRIOR_WARNINGS_SHOWN = set()  # Track which warnings we've already shown
+
+# Function to detect if we're running tests
+def _is_in_testing():
+    """Check if we're currently running in a testing environment."""
+    try:
+        # Check if pytest is in the current stack
+        for frame_info in inspect.stack():
+            if 'pytest' in frame_info.filename or 'test_' in frame_info.filename:
+                return True
+        # Check environment variables
+        return ('pytest' in os.environ.get('_', '') or 
+                'PYTEST_CURRENT_TEST' in os.environ)
+    except:
+        return False
 
 from dso.library import TokenNotFoundError, MultiDiscreteAction
 from dso.subroutines import ancestors
@@ -411,9 +433,22 @@ class Constraint(Prior):
         violated : Bool
         """
 
-        caller          = inspect.getframeinfo(inspect.stack()[1][0])
-
-        warnings.warn(f"{caller.filename} ({caller.lineno}) {type(self).__name__} : Using a slower version of constraint for Deap. You should write your own.")
+        # Show warning only once per constraint type to reduce noise
+        constraint_type = type(self).__name__
+        
+        # Skip warnings if suppressed, in testing, or already shown
+        if (_SUPPRESS_PRIOR_WARNINGS or _is_in_testing() or 
+            constraint_type in _PRIOR_WARNINGS_SHOWN):
+            pass
+        else:
+            _PRIOR_WARNINGS_SHOWN.add(constraint_type)
+            warnings.warn(
+                f"{constraint_type}: Using a slower version of constraint for Deap. "
+                f"You should write your own optimized version for better performance. "
+                f"Set DSO_SUPPRESS_PRIOR_WARNINGS=true to suppress these warnings.",
+                UserWarning,
+                stacklevel=2
+            )
 
         assert len(actions.shape) == 2, "Only takes in one action at a time since this is how Deap will use it."
         assert actions.shape[0] == 1, "Only takes in one action at a time since this is how Deap will use it."

@@ -1,7 +1,7 @@
 """Model architecture of default (saved) LanguageModel"""
 
-import tensorflow as tf
-tf.compat.v1.disable_v2_behavior()
+# Import TensorFlow with optimized configuration
+from dso.tf_config import tf
 
 # rnn = tf.nn.rnn_cell
 from tensorflow.compat.v1 import nn

@@ -27,16 +27,21 @@ Installing the package for development
 
 - Editable install (root of this repo), including dev tools and optional extras:
   pip install -e ./dso[dev]
-  # for control/RL extras:
+
+  ## for control/RL extras:
+
   pip install -e ./dso[control]
-  # or everything:
+
+  ## or everything:
+
   pip install -e ./dso[all]
 
 Build package artifacts (wheel/sdist)
 
 - From the dso/ subproject (contains pyproject.toml):
   python -m build dso/
-  # Resulting dist/ under dso/
+
+  ## Resulting dist/ under dso/
 
 Run tests
 
