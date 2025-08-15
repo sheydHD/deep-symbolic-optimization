@@ -3,6 +3,8 @@
 
 set -euo pipefail
 
+export CUDA_VISIBLE_DEVICES=-1
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export ROOT_DIR              # child scripts can rely on this
 
