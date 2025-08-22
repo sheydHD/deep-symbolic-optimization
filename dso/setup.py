@@ -24,36 +24,40 @@ def _read(fname: str, fallback=None):
 core_requires = _read("core.in")
 extras_requires = _read("extras.in")
 
-if not core_requires:  # sdist / CI fallback
+if not core_requires:  # fallback mirrors root pyproject (keep in sync)
     core_requires = [
-        "numpy>=1.26",
-        "cython>=3.0",
-        "tensorflow>=2.13,<2.16",
-        "pandas>=1.5",
-        "scikit-learn>=1.4",
-        "sympy>=1.12",
         "click>=8.1",
-        "tqdm>=4.66",
-        "pyyaml>=6.0",
-        "prettytable>=3.9",
+        "colorama>=0.4.6",
+        "json5>=0.9",
         "deap>=1.4",
+        "dill>=0.3",
+        "numba>=0.60",  # loosen upper bound; resolver will choose latest compatible
+        "numpy>=1.26,<2.0",
+        "pandas>=2.2",
         "pathos>=0.3",
+        "prettytable>=3.9",
+        "pyyaml>=6.0",
+        "scikit-learn>=1.5",
+        "seaborn>=0.13",
+        "sympy>=1.13",
+        "tqdm>=4.66",
+        "tensorflow>=2.19,<2.20",
     ]
 
 extras = {
-    "control": extras_requires
+    "extras": extras_requires
     or [
-        "gymnasium[box2d]>=0.29",
-        "pybullet>=3.2",
-        "stable-baselines3>=2.3",
-    ],
-    "docs": [
-        "mkdocs-material[imaging]>=9.2",
-        "mkdocstrings[python]>=0.23",
-        "mkdocs-awesome-pages-plugin>=2.9",
-        "pymdown-extensions>=10",
+        "gymnasium[box2d,classic-control]>=1.0.0a1",
+        "stable-baselines3>=2.0",
+        "control",
     ],
     "dev": [
+        "mkdocs>=1.5",
+        "mkdocs-material[imaging]>=9.2",
+        "mkdocs-awesome-pages-plugin>=2.9",
+        "pymdown-extensions>=10",
+        "mkdocstrings[python]>=0.23",
+        "mkdocs-markdownextradata-plugin>=0.2.5",
         "pytest>=8",
         "pytest-cov>=4",
         "black>=23",
@@ -92,7 +96,7 @@ setup(
     author="LLNL",
     packages=find_packages(where="dso", include=["dso", "dso.*"]),
     package_dir={"dso": "dso"},  # import name → inner folder
-    python_requires=">=3.11",
+    python_requires=">=3.11,<3.12",
     install_requires=core_requires,
     extras_require=extras,
     ext_modules=ext_modules,
