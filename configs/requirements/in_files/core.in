@@ -5,7 +5,9 @@ json5
 deap
 dill
 numba
-numpy==1.26.0
+
+# Allow any NumPy bugfix in the 1.x line (TensorFlow 2.19 currently requires <2.0)
+numpy>=1.26,<2.0
 pandas
 pathos
 prettytable
@@ -14,4 +16,14 @@ scikit-learn
 seaborn
 sympy
 tqdm
-tensorflow
+
+# Use latest stable TF2 while preventing an unexpected major jump (adjust upper bound during future upgrades)
+tensorflow>=2.19,<2.20
+
+# NOTE:
+# After modifying this file run (from repo root):
+#   uv pip compile configs/requirements/in_files/core.in -o configs/requirements/core.txt
+# And then recompile dev/extras:
+#   uv pip compile configs/requirements/in_files/dev.in -o configs/requirements/dev.txt
+#   uv pip compile configs/requirements/in_files/extras.in -o configs/requirements/extras.txt
+# Keep the dev + core lock files in sync to avoid diverging TensorFlow versions.

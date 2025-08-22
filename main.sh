@@ -19,5 +19,5 @@ EOF
 
 if [[ ${1:-} =~ ^(-h|--help)$ ]]; then usage; exit 0; fi
 
-# Execute the modern toolchain directly
+# If no args, show interactive menu (Python script already handles this)
 exec python3 "$MODERN" "$@"

@@ -24,3 +24,5 @@ mypy>=1.10
 # Dependency tooling
 pip-tools>=7
 uv>=0.1
+
+# TensorFlow version is controlled in core.in; keep any direct TF-dependent tooling here in sync.

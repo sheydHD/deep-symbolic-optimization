@@ -5,3 +5,5 @@ control
 
 # The following package is Linux-only
 # nvidia-cufile-cu12==1.11.1.6 ; platform_system != "Windows"
+
+# NOTE: TensorFlow version is defined in core.in. Avoid adding a second TF pin here.
