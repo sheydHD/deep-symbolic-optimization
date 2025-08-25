@@ -54,10 +54,10 @@ dev = [
 all = ["dso[extras,dev]"]
 
 [tool.setuptools]
-package-dir = { "" = "dso/dso" }
+package-dir = { "" = "dso_pkg" }
 
 [tool.setuptools.packages.find]
-where = ["dso/dso"]
+where = ["dso_pkg"]
 
 [project.scripts]
 dso = "dso.cli:main"

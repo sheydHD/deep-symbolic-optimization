@@ -5,7 +5,7 @@ from .env import PROJECT, python_exe, run
 
 def run_tests(extra: list[str] | None = None) -> None:
     os.chdir(PROJECT)
-    target = PROJECT / "dso" / "dso" / "test"
+    target = PROJECT / "dso_pkg" / "dso" / "test"
     cmd = [python_exe(), "-m", "pytest", str(target), "-q", "-rs"]
     if extra:
         cmd.extend(extra)

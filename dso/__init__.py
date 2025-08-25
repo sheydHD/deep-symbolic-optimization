@@ -1,2 +1,0 @@
-from core import DeepSymbolicOptimizer
-from task.regression.sklearn import DeepSymbolicRegressor
