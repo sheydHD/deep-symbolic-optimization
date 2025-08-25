@@ -27,11 +27,15 @@ def compile_requirements(name: str) -> Path:
 
 def install_layers() -> None:
     pyproject = PROJECT / "pyproject.toml"
+    venv_python = PROJECT / ".venv" / "bin" / "python"
+    venv_pip = PROJECT / ".venv" / "bin" / "pip"
     if pyproject.exists():
         # Use uv sync groups (core + optional groups dev & extras)
         run(["uv", "pip", "install", "numpy>=1.26,<2.0"])  # ensure numpy headers for cython
         run(["uv", "sync"])  # install core deps + build
-        run(["uv", "pip", "install", "-e", ".[extras,dev]"])  # editable with extras
+        # Always use the venv pip for editable install
+        # Use 'uv pip install' instead of direct pip path for uv venv compatibility
+        run(["uv", "pip", "install", "-e", ".[extras,dev]"])
         return
     # If pyproject.toml is missing, raise an error (legacy .in/.txt not supported)
     raise RuntimeError("pyproject.toml not found. Please ensure you are in the project root and have a valid pyproject.toml.")
