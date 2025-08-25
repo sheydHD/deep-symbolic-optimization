@@ -16,7 +16,77 @@ from contextlib import contextmanager
 import sympy.parsing.sympy_parser as sympy_parser
 import sympy
 
-from typing import Callable
+from typing import Callable, Dict, Any, Union
+
+
+def create_batch_spec(x_dim=None, name=None, max_length=64):
+    """Create TensorSpec for Batch named tuple for TensorFlow 2.x.
+    
+    Creates TensorSpec objects for each field of a Batch namedtuple, which define
+    the expected tensor shapes and types for eager execution.
+    
+    Parameters
+    ----------
+    x_dim : int or None
+        Dimensionality of X. None corresponds to a variable length.
+    
+    name : str or None
+        Optional name prefix (unused in TF2 but kept for compatibility).
+        
+    max_length : int
+        Maximum sequence length for actions and observations.
+    
+    Returns
+    -------
+    dict
+        A dictionary with TensorSpec objects defining the expected shapes.
+    """
+    from dso.memory import Batch  # Import here to avoid circular import
+    
+    # Create TensorSpec objects matching the Batch namedtuple structure
+    # Batch = namedtuple("Batch", ["actions", "obs", "priors", "lengths", "rewards", "on_policy"])
+    
+    # Determine dimensions based on context or defaults
+    obs_dim = 4  # Fixed observation dimension
+    if x_dim is None:
+        # Use variable length if not specified
+        n_choices = None
+    else:
+        n_choices = x_dim
+    
+    return {
+        'actions': tf.TensorSpec(shape=[None, max_length], dtype=tf.int32),
+        'obs': tf.TensorSpec(shape=[None, obs_dim, max_length], dtype=tf.float32),
+        'priors': tf.TensorSpec(shape=[None, max_length, n_choices], dtype=tf.float32),
+        'lengths': tf.TensorSpec(shape=[None], dtype=tf.int32),
+        'rewards': tf.TensorSpec(shape=[None], dtype=tf.float32),
+        'on_policy': tf.TensorSpec(shape=[None], dtype=tf.bool)
+    }
+
+
+def convert_batch_to_tensors(batch):
+    """Convert a Batch object to TensorFlow tensors for TF2 eager execution.
+    
+    Parameters
+    ----------
+    batch : Batch
+        A Batch namedtuple containing numpy arrays or lists.
+    
+    Returns
+    -------
+    Batch
+        A Batch namedtuple containing TensorFlow tensors.
+    """
+    from dso.memory import Batch  # Import here to avoid circular import
+    
+    return Batch(
+        actions=tf.convert_to_tensor(batch.actions, dtype=tf.int32),
+        obs=tf.convert_to_tensor(batch.obs, dtype=tf.float32),
+        priors=tf.convert_to_tensor(batch.priors, dtype=tf.float32),
+        lengths=tf.convert_to_tensor(batch.lengths, dtype=tf.int32),
+        rewards=tf.convert_to_tensor(batch.rewards, dtype=tf.float32),
+        on_policy=tf.convert_to_tensor(batch.on_policy, dtype=tf.bool)
+    )
 
 
 def preserve_global_rng_state(f: Callable):
@@ -297,46 +367,24 @@ def pad_action_obs_priors(actions, obs, priors, pad_length):
     return actions, obs, priors
 
 
-def make_batch_ph(name : str, n_choices : int):
-    """
-    Generates dictionary containing placeholders needed for a batch of sequences.
-    
-    Parameters
-    ----------
-        names : str
-            Name of tensorflow scope for this batch
+import sympy.parsing.sympy_parser as sympy_parser
+import sympy
 
-        n_choices : int
-            Number of choices in priors
+from typing import Callable
 
-    Returns
-    -------
-        batch_ph : dict
-            Dictionary of placeholders
-    """
-
-    # Lazy import
-    import tensorflow as tf
-    from dso.memory import Batch
-    from dso.program import Program
-
-    with tf.compat.v1.name_scope(name):
-        batch_ph = {
-            "actions": tf.compat.v1.placeholder(tf.int32, [None, None]),
-            "obs": tf.compat.v1.placeholder(tf.float32, [None, Program.task.OBS_DIM, None]),
-            "priors": tf.compat.v1.placeholder(tf.float32, [None, None, n_choices]),
-            "lengths": tf.compat.v1.placeholder(tf.int32, [None, ]),
-            "rewards": tf.compat.v1.placeholder(tf.float32, [None], name="r"),
-            "on_policy": tf.compat.v1.placeholder(tf.int32, [None, ])
-         }
-        batch_ph = Batch(**batch_ph)
-    return batch_ph
 
 
 @contextmanager
 def summary_writer(logdir):
-    """Yields a TF-2 summary writer and ensures it is flushed on exit."""
+    """Yields a TF2 summary writer and ensures it is flushed on exit."""
     writer = tf.summary.create_file_writer(logdir)
     with writer.as_default():
         yield writer
     writer.flush()
+
+
+@contextmanager
+def tf_function_cache():
+    """Context manager for TF2 function compilation and caching."""
+    # In TF2, we can use this for any additional function caching needs
+    yield

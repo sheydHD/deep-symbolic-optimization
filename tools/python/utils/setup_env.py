@@ -29,22 +29,12 @@ def install_layers() -> None:
     pyproject = PROJECT / "pyproject.toml"
     if pyproject.exists():
         # Use uv sync groups (core + optional groups dev & extras)
-        # First sync core deps
-        try:
-            run(["uv", "pip", "install", "numpy>=1.26,<2.0"])  # ensure numpy headers for cython
-            run(["uv", "sync"])  # install core deps + build
-            # install optional extras & dev toolchain via extras bracket
-            run(["uv", "pip", "install", "-e", ".[extras,dev]"])  # editable with extras
-            return
-        except subprocess.CalledProcessError:
-            print("[setup-env] uv sync failed. Falling back to editable install via inner setup.py (core only)", file=sys.stderr)
-            run(["uv", "pip", "install", "-e", "dso"])  # minimal fallback
-            return
-    # Legacy path (.in compilation)
-    for layer in ("core", "extras", "dev"):
-        req = compile_requirements(layer)
-        run(["uv", "pip", "install", "-r", str(req)])
-    run(["uv", "pip", "install", "-e", str(PROJECT / "dso")])
+        run(["uv", "pip", "install", "numpy>=1.26,<2.0"])  # ensure numpy headers for cython
+        run(["uv", "sync"])  # install core deps + build
+        run(["uv", "pip", "install", "-e", ".[extras,dev]"])  # editable with extras
+        return
+    # If pyproject.toml is missing, raise an error (legacy .in/.txt not supported)
+    raise RuntimeError("pyproject.toml not found. Please ensure you are in the project root and have a valid pyproject.toml.")
 
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(description="Create / upgrade .venv for DSO")

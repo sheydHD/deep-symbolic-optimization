@@ -52,8 +52,8 @@ class Checkpoint():
         else:
             self.checkpoint_dir = None
 
-        # Create the Saver
-        self.saver = tf.compat.v1.train.Saver()
+        # Create the Checkpoint (will be set up when model is available)
+        self.checkpoint = None
 
         # Load from existing checkpoint, if given
         if load_path is not None:
@@ -125,7 +125,17 @@ class Checkpoint():
         # Save the TensorFlow graph
         # print("Saving TensorFlow graph...")
         tf_save_path = os.path.join(save_path, "tf")
-        self.saver.save(self.model.sess, tf_save_path)
+        
+        # Set up checkpoint if not already done
+        if self.checkpoint is None:
+            # Create checkpoint with trainable variables
+            self.checkpoint = tf.train.Checkpoint(
+                trainer=self.model.trainer,
+                policy=self.model.trainer.policy,
+                policy_optimizer=self.model.trainer.policy_optimizer
+            )
+        
+        self.checkpoint.save(tf_save_path)
 
         # Save the Trainer
         # print("Saving Trainer...")
@@ -168,10 +178,25 @@ class Checkpoint():
         """
 
         # Load the TensorFlow graph
-        if self.model.sess is None:
+        if not hasattr(self.model, 'trainer') or self.model.trainer is None:
             self.model.setup()
+        
+        # Set up checkpoint if not already done
+        if self.checkpoint is None:
+            self.checkpoint = tf.train.Checkpoint(
+                trainer=self.model.trainer,
+                policy=self.model.trainer.policy,
+                policy_optimizer=self.model.trainer.policy_optimizer
+            )
+        
         tf_load_path = os.path.join(load_path, "tf")
-        self.saver.restore(self.model.sess, tf_load_path)
+        # Use tf.train.latest_checkpoint to find the actual checkpoint file
+        latest_checkpoint = tf.train.latest_checkpoint(os.path.dirname(tf_load_path))
+        if latest_checkpoint is not None:
+            self.checkpoint.restore(latest_checkpoint)
+        else:
+            # Fallback: try direct restore
+            self.checkpoint.restore(tf_load_path)
 
         # Load the Trainer
         # print("Loading Trainer...")
@@ -188,7 +213,12 @@ class Checkpoint():
         # print("Loading cache...")
         cache_load_path = os.path.join(load_path, "cache.csv")
         cache_df = pd.read_csv(cache_load_path)
-        cache_df["tokens"] = cache_df["tokens"].str.split(",")
+        # Convert tokens to string if needed, then split
+        if cache_df["tokens"].dtype == 'object':
+            cache_df["tokens"] = cache_df["tokens"].astype(str).str.split(",")
+        else:
+            # For non-string columns, handle conversion properly
+            cache_df["tokens"] = cache_df["tokens"].apply(lambda x: str(x).split(",") if pd.notnull(x) else [])
         programs = [from_tokens(np.array(tokens, dtype=np.int32)) for tokens in cache_df["tokens"]]
         for p, r in zip(programs, cache_df["rewards"]):
             p.r = r

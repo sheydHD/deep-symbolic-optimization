@@ -49,15 +49,23 @@ class LanguageModelPrior:
         self.dso2lm, self.lm2dso = self.set_lib_to_lib(dso_library)
 
         self.language_model = LanguageModel(len(self.lm_token2idx), embedding_size, num_layers, num_hidden, mode='predict')
-        self.lsess = self.load_model(model_path)
+        self.load_model(model_path)
         self.next_state = None
         self._zero_state = np.zeros(num_hidden, dtype=np.float32)
 
     def load_model(self, saved_language_model_path):
-        sess = tf.compat.v1.Session()
-        saver = tf.compat.v1.train.Saver()
-        saver.restore(sess,tf.train.latest_checkpoint(saved_language_model_path))
-        return sess
+        """Load pre-trained model using TF2."""
+        # Try to load as SavedModel first
+        try:
+            self.language_model = tf.keras.models.load_model(saved_language_model_path)
+        except:
+            # If that fails, build the model and load weights
+            dummy_input = tf.zeros([1, 10], dtype=tf.int32)
+            self.language_model(dummy_input)  # Build the model
+            
+            # Load checkpoint
+            checkpoint = tf.train.Checkpoint(model=self.language_model)
+            checkpoint.restore(tf.train.latest_checkpoint(saved_language_model_path))
 
     def set_lib_to_lib(self, dso_library):
         """match token libraries of DSO and lm (LanguageModel)"""
@@ -76,23 +84,24 @@ class LanguageModelPrior:
     def get_lm_prior(self, next_input):
         """return language model prior based on given current token"""
 
-        # set feed_dict
+        # set input
         next_input = np.array(self.dso2lm)[next_input]  # match library with DSO 
-        next_input = np.array([next_input])
+        next_input = tf.constant([[next_input]], dtype=tf.int32)  # Shape: [batch_size, seq_len]
 
         if self.next_state is None: # first input of a sequence
-            # For dynamic_rnn, not passing language_model.initial_state == passing zero_state.
-            # Here, explicitly passing zero_state
-            self.next_state = np.atleast_2d(self._zero_state) # initialize the cell
+            # Initialize state for new sequence
+            self.next_state = self.language_model.get_initial_state(1)
         
-        feed_dict = {self.language_model.x: next_input, self.language_model.keep_prob: 1.0, self.language_model.initial_state: self.next_state}
-
         # get language model prior
-        self.next_state, lm_logit = self.lsess.run([self.language_model.last_state, self.language_model.logits], feed_dict=feed_dict)
+        logits, self.next_state = self.language_model(next_input, initial_state=self.next_state, training=False)
+        
+        # Convert to numpy for further processing
+        lm_logit = logits.numpy()
         
         if self.prob_sharing is True:
             # sharing probability among tokens in same group (e.g., TERMINAL to multiple variables)
             lm_logit[:, :, self.lm_token2idx['TERMINAL']] = lm_logit[:, :, self.lm_token2idx['TERMINAL']] - np.log(self.dso_n_input_var)
+        
         lm_prior = lm_logit[0, :, self.dso2lm]
         lm_prior = np.transpose(lm_prior) # make its shape to (batch size, dso size)
         

@@ -7,13 +7,9 @@ name = "dso"
 version = "2.0.0"
 description = "Deep Symbolic Optimization (TF2 branch)"
 readme = "README.md"
-authors = [ { name = "LLNL" } ]
+authors = [{ name = "LLNL" }]
 license = { text = "BSD-3-Clause" }
-# Restrict to Python 3.11 series to avoid solver considering future 3.13+ splits
-# that force TensorFlow 2.19 to require numpy>=2.1 (conflicting with our <2.0 pin).
-# If/when upgrading to Py3.12/3.13 and TF >=2.20, revisit and relax this.
 requires-python = ">=3.11,<3.12"
-# Core runtime dependencies
 dependencies = [
   "click",
   "colorama",
@@ -39,7 +35,6 @@ extras = [
   "stable-baselines3>=2.0",
   "control"
 ]
-# Dev includes docs + test + lint + type tooling
 dev = [
   "mkdocs>=1.5",
   "mkdocs-material[imaging]>=9.2",
@@ -58,31 +53,11 @@ dev = [
 ]
 all = ["dso[extras,dev]"]
 
-[project.scripts]
-# Unified CLI (optional). After install: `dso-tool menu`
-"dso-tool" = "tools.python.run:interactive_menu"
-
 [tool.setuptools]
-packages = ["dso"]
+package-dir = { "" = "dso/dso" }
 
+[tool.setuptools.packages.find]
+where = ["dso/dso"]
 
-[tool.setuptools.package-dir]
-dso = "dso/dso"
-
-[tool.setuptools.exclude-package-data]
-"*" = ["log*", "site*", "configs*"]
-
-[tool.uv]
-# No dependency-groups (feature not supported in current uv); rely on extras via optional-dependencies.
-
-[tool.black]
-line-length = 100
-
-[tool.isort]
-profile = "black"
-
-[tool.pytest.ini_options]
-addopts = "-ra"
-pythonpath = ["."]
-
-# Transitional note: legacy configs/requirements/*.in still exist; setup tooling detects pyproject first.
+[project.scripts]
+dso = "dso.cli:main"

@@ -18,7 +18,7 @@ priors  = tf.TensorArray
 neglogp = tf.TensorArray
 entropy = tf.TensorArray
 
-def make_policy(sess, prior, state_manager, policy_type, **config_policy):
+def make_policy(prior, state_manager, policy_type, **config_policy):
     """Factory function for Policy object."""
 
     if policy_type == "rnn":
@@ -30,8 +30,7 @@ def make_policy(sess, prior, state_manager, policy_type, **config_policy):
         assert issubclass(policy_class, Policy), \
                 f"Custom policy {policy_class} must subclass dso.policy.Policy."
         
-    policy = policy_class(sess,
-                          prior,
+    policy = policy_class(prior,
                           state_manager,
                           **config_policy)
 
@@ -44,16 +43,12 @@ class Policy(ABC):
     """    
 
     def __init__(self, 
-            sess : tf.compat.v1.Session,
             prior : JointPrior,
             state_manager : StateManager,
             debug : int = 0,  
             max_length : int = 30) -> None:
         '''Parameters
-        ----------
-        sess : tf.Session
-            TenorFlow Session object.
-    
+        ----------    
         prior : dso.prior.JointPrior
             JointPrior object used to adjust probabilities during sampling.
     
@@ -68,7 +63,6 @@ class Policy(ABC):
             Maximum sequence length. This will be overridden if a LengthConstraint
             with a maximum length is part of the prior.
         '''    
-        self.sess = sess
         self.prior = prior
         self.state_manager = state_manager
         self.debug = debug

@@ -1,90 +1,111 @@
-"""TensorFlow 2.x configuration for DSO with v1 compatibility mode.
+"""TensorFlow 2.x configuration and setup utilities."""
 
-This module configures TensorFlow 2.x to work with legacy v1 code patterns
-while minimizing unnecessary warnings and ensuring proper compatibility.
-"""
-
+import tensorflow as tf
 import os
 import warnings
 import logging
 
-# Configure environment before importing TensorFlow
-# Suppress all TF C++ level logs except errors
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'  # Show all logs
+# Configure environment for optimal TF2 performance
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'  # Show warnings and errors only
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'  # Disable oneDNN optimizations
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '1'  # Enable oneDNN optimizations for better performance
 
-# Configure Python logging for TensorFlow - suppress deprecation warnings from TF1 compat
-logging.getLogger('tensorflow').setLevel(logging.ERROR)
-# Also configure absl logging used by TensorFlow
-logging.getLogger('absl').setLevel(logging.ERROR)
+# Configure logging
+logging.getLogger('tensorflow').setLevel(logging.WARNING)
+logging.getLogger('absl').setLevel(logging.WARNING)
 
-# Filter only truly irrelevant warnings
-# Keep deprecation warnings visible for actual issues
+# Filter warnings for a cleaner output
 warnings.filterwarnings('ignore', category=FutureWarning, module='tensorflow')
-# Specific warning about resource variables that we understand but cannot fix yet
-warnings.filterwarnings('ignore', message='.*non-resource variables are not supported.*')
-
-# Known TF1 compatibility warnings that will be fixed in future migration
-warnings.filterwarnings('ignore', message='.*MultiRNNCell.*is deprecated.*', module='tensorflow')
-warnings.filterwarnings('ignore', message='.*py_func.*is deprecated.*', module='tensorflow')
-warnings.filterwarnings('ignore', message='.*dynamic_rnn.*is deprecated.*', module='tensorflow')
-
-# Suppress unrelated library warnings
 warnings.filterwarnings('ignore', message='pkg_resources is deprecated', category=UserWarning)
 
-# Import TensorFlow
-import tensorflow as tf
 
-# Global flag to track if we're using v1 compatibility mode
-USING_TF_V1_COMPAT = True
-
-def configure_tensorflow_v1_compat():
-    """
-    Configure TensorFlow 2.x to work with v1 code patterns.
+def setup_tensorflow():
+    """Configure TensorFlow 2.x with optimal settings for DSO."""
     
-    This is a temporary compatibility layer that should be removed
-    once the codebase is fully migrated to TF2.
+    # Enable eager execution (default in TF2 but explicit for clarity)
+    tf.config.run_functions_eagerly(False)  # Use graph mode for performance
     
-    We use targeted compatibility functions instead of disable_v2_behavior()
-    to avoid the deprecated disable_resource_variables() call.
-    """
-    
-    # Instead of disable_v2_behavior(), use specific compatibility settings:
-    # 1. Disable eager execution (main difference between TF1 and TF2)
-    tf.compat.v1.disable_eager_execution()
-    
-    # 2. Enable control flow v2 (this is actually better than v1)
-    tf.compat.v1.enable_control_flow_v2()
-    
-    # 3. Set TF1 logging verbosity
-    tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
-    
-    # Configure GPU memory growth for both v1 and v2 patterns
-    try:
-        # Try v2 style first
-        gpus = tf.config.experimental.list_physical_devices('GPU')
-        if gpus:
+    # Configure GPU if available
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if gpus:
+        try:
+            # Enable memory growth to avoid allocating all GPU memory at once
             for gpu in gpus:
                 tf.config.experimental.set_memory_growth(gpu, True)
-    except Exception:
-        # Fallback to v1 style if needed
-        try:
-            config = tf.compat.v1.ConfigProto()
-            config.gpu_options.allow_growth = True
-        except Exception:
-            pass  # No GPU or configuration failed
+        except RuntimeError as e:
+            print(f"GPU configuration error: {e}")
     
-    return True
+    # Set floating point precision
+    tf.keras.backend.set_floatx('float32')
+    
+    # Configure threading for CPU
+    tf.config.threading.set_intra_op_parallelism_threads(0)  # Use all available cores
+    tf.config.threading.set_inter_op_parallelism_threads(0)  # Use all available cores
 
-# Apply v1 compatibility configuration
-is_configured = configure_tensorflow_v1_compat()
 
-# Export commonly used tf.compat.v1 aliases to reduce code changes needed
-# These will be removed during full TF2 migration
-Session = tf.compat.v1.Session
-placeholder = tf.compat.v1.placeholder
-get_variable = tf.compat.v1.get_variable
-variable_scope = tf.compat.v1.variable_scope
-ConfigProto = tf.compat.v1.ConfigProto
-reset_default_graph = tf.compat.v1.reset_default_graph
+def enable_mixed_precision():
+    """Enable mixed precision training for better performance on modern GPUs."""
+    policy = tf.keras.mixed_precision.Policy('mixed_float16')
+    tf.keras.mixed_precision.set_global_policy(policy)
+
+
+# Initialize TensorFlow with optimal settings
+setup_tensorflow()
+
+# Modern TF2 API aliases - No more compat.v1!
+# Core tensor operations
+convert_to_tensor = tf.convert_to_tensor
+constant = tf.constant
+Variable = tf.Variable
+
+# Math operations  
+reduce_sum = tf.reduce_sum
+reduce_mean = tf.reduce_mean
+reduce_max = tf.reduce_max
+reduce_min = tf.reduce_min
+matmul = tf.linalg.matmul
+transpose = tf.transpose
+
+# Neural network operations
+dense = tf.keras.layers.Dense
+dropout = tf.keras.layers.Dropout
+batch_normalization = tf.keras.layers.BatchNormalization
+
+# Optimizers (modern TF2 versions)
+AdamOptimizer = tf.keras.optimizers.Adam
+RMSPropOptimizer = tf.keras.optimizers.RMSprop  
+GradientDescentOptimizer = tf.keras.optimizers.SGD
+
+# Loss functions
+softmax_cross_entropy_with_logits = tf.nn.softmax_cross_entropy_with_logits
+sparse_softmax_cross_entropy_with_logits = tf.nn.sparse_softmax_cross_entropy_with_logits
+
+# Activation functions
+relu = tf.nn.relu
+sigmoid = tf.nn.sigmoid
+tanh = tf.nn.tanh
+softmax = tf.nn.softmax
+
+# Initializers
+zeros_initializer = tf.zeros_initializer
+ones_initializer = tf.ones_initializer
+random_normal_initializer = tf.random_normal_initializer
+random_uniform_initializer = tf.random_uniform_initializer
+truncated_normal_initializer = tf.keras.initializers.TruncatedNormal  # TF2 equivalent
+glorot_uniform_initializer = tf.keras.initializers.GlorotUniform
+glorot_normal_initializer = tf.keras.initializers.GlorotNormal
+
+# Variable scoping (TF2 style)
+name_scope = tf.name_scope
+
+# Random operations
+random_normal = tf.random.normal
+random_uniform = tf.random.uniform
+set_random_seed = tf.random.set_seed
+
+# Control flow
+cond = tf.cond
+while_loop = tf.while_loop
+
+# Gradient computation
+GradientTape = tf.GradientTape

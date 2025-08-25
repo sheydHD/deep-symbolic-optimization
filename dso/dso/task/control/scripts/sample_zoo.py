@@ -24,23 +24,24 @@ def main(env,  n_episodes, n_samples):
     # Make gym environment
     env = gym.make(env_name)
     if "Bullet" in env_name:
-       env = U.TimeFeatureWrapper(env)
+        env = U.TimeFeatureWrapper(env)
 
-    #Load model
+    # Load model
     U.load_default_model(env_name)
 
+    obs_list = []
+    action_list = []
     for i in range(n_episodes):
-        env.seed(i + REGRESSION_SEED_SHIFT)
-        obs=env.reset()
+        env.action_space.seed(i + REGRESSION_SEED_SHIFT)
+        obs, info = env.reset(seed=i + REGRESSION_SEED_SHIFT)
         done = False
-        obs_list = []
-        action_list = []
         while not done:
             obs_list.append(obs)
             action, _states = U.model.predict(obs)
-            obs, rewards, done, info = env.step(action)
+            obs, reward, terminated, truncated, info = env.step(action)
             action = np.array(action)
             action_list.append(action)
+            done = terminated or truncated
 
     # Convert to array
     # Columns correspond to [s1, s2, ..., sn, a1, a2, ..., an] for use by DSO

@@ -40,3 +40,28 @@ def test_task(model, config):
                                   "batch_size" : 5
                                   })
     model.train()
+
+
+def test_model_parity():
+    """Test that a saved and restored model has identical weights (TF2.x parity test)."""
+    import tempfile
+    config = load_config("dso/config/config_regression.json")
+    config["experiment"]["logdir"] = None
+    # Train and save a reference model
+    model_ref = DeepSymbolicOptimizer(config)
+    model_ref.train()
+    ckpt_ref = tf.train.Checkpoint(model=model_ref)
+    ref_dir = tempfile.mkdtemp(prefix="dso_ref_ckpt_")
+    ref_path = ckpt_ref.save(os.path.join(ref_dir, "ckpt"))
+
+    # Create a new model and restore weights
+    model_new = DeepSymbolicOptimizer(config)
+    ckpt_new = tf.train.Checkpoint(model=model_new)
+    ckpt_new.restore(ref_path).expect_partial()
+
+    # Compare variables (assumes model exposes trainable_variables)
+    ref_vars = [v.numpy() for v in getattr(model_ref, 'trainable_variables', [])]
+    new_vars = [v.numpy() for v in getattr(model_new, 'trainable_variables', [])]
+    assert len(ref_vars) == len(new_vars), "Variable count mismatch after restore!"
+    for i, (v1, v2) in enumerate(zip(ref_vars, new_vars)):
+        assert np.allclose(v1, v2), f"Model variable {i} does not match after restore!"

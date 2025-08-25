@@ -119,22 +119,25 @@ class HierarchicalStateManager(StateManager):
         super().setup_manager(policy)
         # Create embeddings if needed
         if self.embedding:
-            initializer = tf.compat.v1.random_uniform_initializer(minval=-1.0,
+            initializer = tf.random_uniform_initializer(minval=-1.0,
                                                         maxval=1.0,
                                                         seed=0)
-            with tf.compat.v1.variable_scope("embeddings", initializer=initializer):
+            with tf.name_scope("embeddings"):
                 if self.observe_action:
-                    self.action_embeddings = tf.compat.v1.get_variable("action_embeddings",
-                                                             [self.library.n_action_inputs, self.embedding_size],
-                                                             trainable=True)
+                    self.action_embeddings = tf.Variable(
+                        initializer([self.library.n_action_inputs, self.embedding_size]),
+                        trainable=True,
+                        name="action_embeddings")
                 if self.observe_parent:
-                    self.parent_embeddings = tf.compat.v1.get_variable("parent_embeddings",
-                                                             [self.library.n_parent_inputs, self.embedding_size],
-                                                             trainable=True)
+                    self.parent_embeddings = tf.Variable(
+                        initializer([self.library.n_parent_inputs, self.embedding_size]),
+                        trainable=True,
+                        name="parent_embeddings")
                 if self.observe_sibling:
-                    self.sibling_embeddings = tf.compat.v1.get_variable("sibling_embeddings",
-                                                              [self.library.n_sibling_inputs, self.embedding_size],
-                                                              trainable=True)
+                    self.sibling_embeddings = tf.Variable(
+                        initializer([self.library.n_sibling_inputs, self.embedding_size]),
+                        trainable=True,
+                        name="sibling_embeddings")
 
     def get_tensor_input(self, obs):
         observations = []

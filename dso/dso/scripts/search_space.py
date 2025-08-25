@@ -21,8 +21,7 @@ def create_model(config, prior_override=None):
         model.config["prior"] = prior_override
         model.config_prior = prior_override
     model.setup()
-    model.sess.run(tf.compat.v1.global_variables_initializer())
-
+    # No session or global_variables_initializer needed in TF2
     return model
 
 

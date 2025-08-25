@@ -23,16 +23,13 @@ class StatsLogger():
     """ Class responsible for dealing with output files of training statistics.
         It encapsulates all outputs to files."""
 
-    def __init__(self, sess, output_file, save_summary=False, save_all_iterations=False, hof=100,
+    def __init__(self, output_file, save_summary=False, save_all_iterations=False, hof=100,
                  save_pareto_front=True, save_positional_entropy=False, save_top_samples_per_batch=0,
                  save_cache=False, save_cache_r_min=0.9, save_freq=1, save_token_count=False):
 
         """"
-        sess : tf.Session
-            TenorFlow Session object (used for generating summary files)
-
-        output_file : str
-            Filename to write results for each iteration.
+        output_file : str or None
+            Filename to write results for each iteration. If None, no file output.
 
         save_summary : bool, optional
             Whether to write TensorFlow summaries.
@@ -64,7 +61,6 @@ class StatsLogger():
         save_token_count : bool
             Wether to count used tokens in each iteration
         """
-        self.sess = sess
         self.output_file = output_file
         self.save_summary = save_summary
         self.save_all_iterations = save_all_iterations

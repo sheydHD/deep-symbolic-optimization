@@ -9,19 +9,35 @@ class PPOPolicyOptimizer(PolicyOptimizer):
 
     Parameters
     ----------
-
-    ppo_clip_ratio : float
-        Clip ratio to use for PPO.
-
-    ppo_n_iters : int
-        Number of optimization iterations for PPO.
-
-    ppo_n_mb : int
-        Number of minibatches per optimization iteration for PPO.
+    policy : Policy
+        The policy to optimize.
         
+    eps_clip : float
+        Clip ratio to use for PPO.
+        
+    debug : int
+        Debug level.
+        
+    summary : bool
+        Whether to write summaries.
+        
+    logdir : str
+        Directory for logging.
+        
+    optimizer : str
+        Optimizer type ('adam', 'rmsprop', 'sgd').
+        
+    learning_rate : float
+        Learning rate for optimization.
+        
+    entropy_weight : float
+        Weight for entropy regularization.
+        
+    entropy_gamma : float
+        Gamma for entropy decay.
     """
+    
     def __init__(self,
-            sess : tf.compat.v1.Session,
             policy : Policy,
             debug : int = 0,
             summary : bool = False,
@@ -34,80 +50,93 @@ class PPOPolicyOptimizer(PolicyOptimizer):
             entropy_gamma : float = 1.0,
             # PPO hyperparameters
             eps_clip : float = 0.2) -> None:
-        super()._setup_policy_optimizer(sess, policy, debug, summary, logdir, optimizer, learning_rate, entropy_weight, entropy_gamma)
+        super().__init__(policy, debug, summary, logdir, optimizer, learning_rate, entropy_weight, entropy_gamma)
         
         # Parameters specific for the algorithm
         self.eps_clip = eps_clip
-
+        
+        # Create optimizer
+        if optimizer == 'adam':
+            self.optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+        elif optimizer == 'rmsprop':
+            self.optimizer = tf.keras.optimizers.RMSprop(learning_rate=learning_rate)
+        elif optimizer == 'sgd':
+            self.optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate)
+        else:
+            raise ValueError(f"Unknown optimizer: {optimizer}")
 
     def _set_loss(self):
-        with tf.compat.v1.name_scope("losses"):
-            # Retrieve rewards from batch
-            r = self.sampled_batch_ph.rewards
+        """Set the loss function for PPO (required abstract method)."""
+        # For PPO, loss is computed dynamically in _compute_loss
+        # This method is required by the abstract base class but is a no-op for PPO
+        pass
 
-            self.old_neglogp_ph = tf.compat.v1.placeholder(dtype=tf.float32, 
-                                    shape=(None,), name="old_neglogp")
-            ratio = tf.exp(self.old_neglogp_ph - self.neglogp)
-            clipped_ratio = tf.clip_by_value(ratio, 1. - self.ppo_clip_ratio,
-                                        1. + self.ppo_clip_ratio)
-            ppo_loss = -tf.reduce_mean((r - self.baseline) *
-                                    tf.minimum(ratio, clipped_ratio))
-            # Loss already is set to entropy loss
-            self.loss += ppo_loss
+    @tf.function
+    def _compute_loss(self, batch, old_log_probs):
+        """Compute PPO loss using TF2."""
+        # Get rewards from batch
+        r = batch.rewards
+        
+        # Compute current log probabilities and entropy
+        current_log_probs = self.policy.compute_log_prob(batch.obs, batch.actions)
+        _, _, entropy = self.policy.get_probs_and_entropy(batch.obs, batch.actions)
+        
+        # Compute ratio for PPO
+        ratio = tf.exp(current_log_probs - old_log_probs)
+        
+        # Baseline is the mean of current rewards
+        baseline = tf.reduce_mean(r)
+        advantages = r - baseline
+        
+        # PPO clipped surrogate loss
+        surr1 = ratio * advantages
+        surr2 = tf.clip_by_value(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip) * advantages
+        ppo_loss = -tf.reduce_mean(tf.minimum(surr1, surr2))
+        
+        # Add entropy regularization
+        entropy_loss = -self.entropy_weight * tf.reduce_mean(entropy)
+        
+        total_loss = ppo_loss + entropy_loss
+        
+        return total_loss, ppo_loss, entropy_loss
 
-            # Define PPO diagnostics
-            clipped = tf.logical_or(ratio < (1. - self.ppo_clip_ratio),
-                                ratio > 1. + self.ppo_clip_ratio)
-            self.clip_fraction = tf.reduce_mean(tf.cast(clipped, tf.float32))
-            self.sample_kl = tf.reduce_mean(self.neglogp - self.old_neglogp_ph)
-
-
-    def _preppend_to_summary(self, iteration):
-        with self.writer.as_default():
-            tf.summary.scalar("ppo_loss", self.ppo_loss, step=iteration)
-
-
-    def train_step(self, baseline, sampled_batch):
-        self.iterations.assign_add(1) # Increment iteration counter
-        feed_dict = {
-            self.baseline : baseline,
-            self.sampled_batch_ph : sampled_batch
+    @tf.function
+    def train_step(self, batch, old_log_probs):
+        """Perform one training step using TF2 GradientTape."""
+        with tf.GradientTape() as tape:
+            total_loss, ppo_loss, entropy_loss = self._compute_loss(batch, old_log_probs)
+        
+        # Compute gradients
+        gradients = tape.gradient(total_loss, self.policy.controller.trainable_variables)
+        
+        # Apply gradients
+        self.optimizer.apply_gradients(zip(gradients, self.policy.controller.trainable_variables))
+        
+        return {
+            'total_loss': total_loss,
+            'ppo_loss': ppo_loss, 
+            'entropy_loss': entropy_loss
         }
-        n_samples = sampled_batch.rewards.shape[0]
 
-
-        # Compute old_neglogp to be used for training
-        old_neglogp = self.sess.run(self.neglogp, feed_dict=feed_dict)
-
-        # Perform multiple steps of minibatch training
-        # feed_dict[self.old_neglogp_ph] = old_neglogp
-        indices = np.arange(n_samples)
-        for ppo_iter in range(self.ppo_n_iters):
-            self.rng.shuffle(indices) # in-place
-            # list of [ppo_n_mb] arrays
-            minibatches = np.array_split(indices, self.ppo_n_mb)
-            for i, mb in enumerate(minibatches):
-                sampled_batch_mb = Batch(
-                        **{name: array[mb] for name, array
-                           in sampled_batch._asdict().items()})
-                mb_feed_dict = {
-                        self.baseline: baseline,
-                        self.batch_size: len(mb),
-                        self.old_neglogp_ph: old_neglogp[mb],
-                        self.sampled_batch_ph: sampled_batch_mb
-                }
-
-                _ = self.sess.run(self.train_op,
-                                                 feed_dict=mb_feed_dict)
-
-                # Diagnostics
-                # kl, cf, _ = self.sess.run(
-                #     [self.sample_kl, self.clip_fraction, self.train_op],
-                #     feed_dict=mb_feed_dict)
-                # print("ppo_iter", ppo_iter, "i", i, "KL", kl, "CF", cf)
-
-        return None
-
-
-
-
+    def train(self, baseline, sampled_batch):
+        """Train the policy with PPO algorithm."""
+        # Convert batch to tensors if needed
+        if not isinstance(sampled_batch.actions, tf.Tensor):
+            from dso.utils import convert_batch_to_tensors
+            sampled_batch = convert_batch_to_tensors(sampled_batch)
+        
+        # Get old log probabilities (for first iteration, use current)
+        old_log_probs = self.policy.compute_log_prob(sampled_batch.obs, sampled_batch.actions)
+        old_log_probs = tf.stop_gradient(old_log_probs)  # Don't compute gradients through old policy
+        
+        # Perform training step
+        metrics = self.train_step(sampled_batch, old_log_probs)
+        
+        # Log metrics if summary is enabled
+        if self.summary and self.logdir:
+            with tf.summary.create_file_writer(self.logdir).as_default():
+                tf.summary.scalar("total_loss", metrics['total_loss'])
+                tf.summary.scalar("ppo_loss", metrics['ppo_loss']) 
+                tf.summary.scalar("entropy_loss", metrics['entropy_loss'])
+        
+        return metrics

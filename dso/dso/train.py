@@ -5,8 +5,8 @@ import json
 import time
 from itertools import compress
 
-# Import TensorFlow with optimized configuration
-from dso.tf_config import tf
+# Import TensorFlow 2.x
+import tensorflow as tf
 import numpy as np
 
 from dso.program import Program, from_tokens
@@ -21,8 +21,8 @@ def work(p):
     r = p.r
     return p
 
-class Trainer():
-    def __init__(self, sess, policy, policy_optimizer, gp_controller, logger,
+class Trainer(tf.Module):
+    def __init__(self, policy, policy_optimizer, gp_controller, logger,
                  pool, n_samples=2000000, batch_size=1000, alpha=0.5,
                  epsilon=0.05, verbose=True, baseline="R_e",
                  b_jumpstart=False, early_stopping=True, debug=0,
@@ -30,21 +30,17 @@ class Trainer():
                  complexity="token", const_optimizer="scipy", const_params=None,  n_cores_batch=1):
 
         """
-        Initializes the main training loop.
+        Initializes the main training loop. Inherits from tf.Module to make it
+        trackable for TensorFlow checkpointing.
 
         Parameters
         ----------
-        sess : tf.Session
-            TensorFlow Session object.
-        
         policy : dso.policy.Policy
             Parametrized probability distribution over discrete objects.
             Used to generate programs and compute loglikelihoods.
 
         policy_optimizer : dso.policy_optimizer.policy_optimizer
-            policy_optimizer object used to optimize the policy.
-
-        gp_controller : dso.gp.gp_controller.GPController or None
+            policy_optimizer object used to optimize the policy.        gp_controller : dso.gp.gp_controller.GPController or None
             GP controller object used to generate Programs.
 
         logger : dso.train_stats.StatsLogger
@@ -121,10 +117,10 @@ class Trainer():
 
 
         """
-        self.sess = sess
-        # Initialize compute graph
-        self.sess.run(tf.compat.v1.global_variables_initializer())
-
+        # TF2: No need to initialize variables manually - they're initialized when created
+        # Initialize tf.Module first
+        super().__init__()
+        
         self.policy = policy
         self.policy_optimizer = policy_optimizer
         self.gp_controller = gp_controller
@@ -143,11 +139,15 @@ class Trainer():
         self.memory_threshold = memory_threshold
 
         if self.debug:
-            tvars = tf.compat.v1.trainable_variables()
             def print_var_means():
-                tvars_vals = self.sess.run(tvars)
-                for var, val in zip(tvars, tvars_vals):
-                    print(var.name, "mean:", val.mean(), "var:", val.var())
+                # TF2: Get trainable variables from the policy model
+                if hasattr(self.policy, 'trainable_variables'):
+                    tvars = self.policy.trainable_variables
+                    for var in tvars:
+                        val = var.numpy()
+                        print(var.name, "mean:", val.mean(), "var:", val.var())
+                else:
+                    print("No trainable variables found in policy")
             self.print_var_means = print_var_means
 
         # Create the priority_queue if needed

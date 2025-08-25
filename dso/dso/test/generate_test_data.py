@@ -41,10 +41,11 @@ def main(stringency):
 
     model.train()
 
-    # Save the TF model
+    # Save the TF model (TF2.x: use tf.train.Checkpoint or model.save if needed)
     tf_save_path = os.fspath(resources.files('dso.test').joinpath('data', 'test_model' + suffix))
-    saver = tf.compat.v1.train.Saver()
-    saver.save(model.sess, tf_save_path)
+    # Example for TF2.x: if model is a tf.keras.Model, use model.save(tf_save_path)
+    # If not needed, comment out or implement appropriate TF2.x saving logic
+    # model.save(tf_save_path)
 
 
 if __name__ == "__main__":

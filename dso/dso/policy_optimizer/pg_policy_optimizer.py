@@ -7,22 +7,32 @@ class PGPolicyOptimizer(PolicyOptimizer):
 
     Parameters
     ----------
-    cell : str
-        Recurrent cell to use. Supports 'lstm' and 'gru'.
-
-    num_layers : int
-        Number of RNN layers.
-
-    num_units : int or list of ints
-        Number of RNN cell units in each of the RNN's layers. If int, the value
-        is repeated for each layer. 
-
-    initiailizer : str
-        Initializer for the recurrent cell. Supports 'zeros' and 'var_scale'.
+    policy : Policy
+        The policy to optimize.
         
+    debug : int
+        Debug level.
+        
+    summary : bool
+        Whether to write summaries.
+        
+    logdir : str
+        Directory for logging.
+        
+    optimizer : str
+        Optimizer type ('adam', 'rmsprop', 'sgd').
+        
+    learning_rate : float
+        Learning rate for optimization.
+        
+    entropy_weight : float
+        Weight for entropy regularization.
+        
+    entropy_gamma : float
+        Gamma for entropy decay.
     """
+    
     def __init__(self,
-            sess : tf.compat.v1.Session,
             policy : Policy,
             debug : int = 0,
             summary : bool = False,
@@ -33,32 +43,81 @@ class PGPolicyOptimizer(PolicyOptimizer):
             # Loss hyperparameters
             entropy_weight : float = 0.005,
             entropy_gamma : float = 1.0) -> None:
-        super()._setup_policy_optimizer(sess, policy, debug, summary, logdir, optimizer, learning_rate, entropy_weight, entropy_gamma)
-
+        super().__init__(policy, debug, summary, logdir, optimizer, learning_rate, entropy_weight, entropy_gamma)
+        
+        # Create optimizer
+        if optimizer == 'adam':
+            self.optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+        elif optimizer == 'rmsprop':
+            self.optimizer = tf.keras.optimizers.RMSprop(learning_rate=learning_rate)
+        elif optimizer == 'sgd':
+            self.optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate)
+        else:
+            raise ValueError(f"Unknown optimizer: {optimizer}")
 
     def _set_loss(self):
-        with tf.compat.v1.name_scope("losses"):
-            # Retrieve rewards from batch
-            r = self.sampled_batch_ph.rewards
-            # Baseline is the worst of the current samples r
-            self.pg_loss = tf.reduce_mean((r - self.baseline) * self.neglogp, name="pg_loss")
-            # Loss already is set to entropy loss
-            self.loss += self.pg_loss
+        """Set the loss function for policy gradient (required abstract method)."""
+        # For PG, loss is computed dynamically in _compute_loss
+        # This method is required by the abstract base class but is a no-op for PG
+        pass
 
+    @tf.function
+    def _compute_loss(self, batch):
+        """Compute policy gradient loss using TF2."""
+        # Get rewards from batch
+        r = tf.cast(batch.rewards, tf.float32)  # Ensure float32 type
+        
+        # Compute log probabilities and entropy
+        log_probs = self.policy.compute_log_prob(batch.obs, batch.actions)
+        
+        # Baseline is the mean of current rewards
+        baseline = tf.reduce_mean(r)
+        
+        # Compute policy gradient loss
+        advantages = r - baseline
+        pg_loss = -tf.reduce_mean(advantages * log_probs)
+        
+        # Add entropy regularization
+        _, _, entropy = self.policy.get_probs_and_entropy(batch.obs, batch.actions)
+        entropy_loss = -self.entropy_weight * tf.reduce_mean(entropy)
+        
+        total_loss = pg_loss + entropy_loss
+        
+        return total_loss, pg_loss, entropy_loss
 
-    def _preppend_to_summary(self, iteration):
-        with self.writer.as_default():
-            tf.summary.scalar("pg_loss", self.pg_loss, step=iteration)
-
-
+    @tf.function
     def train_step(self, baseline, sampled_batch):
-        """Computes loss, trains model, and returns summaries."""
-        self.iterations.assign_add(1) # Increment iteration counter
-        feed_dict = {
-            self.baseline : baseline,
-            self.sampled_batch_ph : sampled_batch
+        """Perform one training step using TF2 GradientTape."""
+        with tf.GradientTape() as tape:
+            total_loss, pg_loss, entropy_loss = self._compute_loss(sampled_batch)
+        
+        # Compute gradients
+        gradients = tape.gradient(total_loss, self.policy.controller.trainable_variables)
+        
+        # Apply gradients
+        self.optimizer.apply_gradients(zip(gradients, self.policy.controller.trainable_variables))
+        
+        return {
+            'total_loss': total_loss,
+            'pg_loss': pg_loss, 
+            'entropy_loss': entropy_loss
         }
 
-        _ = self.sess.run(self.train_op, feed_dict=feed_dict)
-
-        return None
+    def train(self, baseline, sampled_batch):
+        """Train the policy with the given batch."""
+        # Convert batch to tensors if needed
+        if not isinstance(sampled_batch.actions, tf.Tensor):
+            from dso.utils import convert_batch_to_tensors
+            sampled_batch = convert_batch_to_tensors(sampled_batch)
+        
+        # Perform training step
+        metrics = self.train_step(sampled_batch)
+        
+        # Log metrics if summary is enabled
+        if self.summary and self.logdir:
+            with tf.summary.create_file_writer(self.logdir).as_default():
+                tf.summary.scalar("total_loss", metrics['total_loss'])
+                tf.summary.scalar("pg_loss", metrics['pg_loss']) 
+                tf.summary.scalar("entropy_loss", metrics['entropy_loss'])
+        
+        return metrics

@@ -1,9 +1,0 @@
-# For control tasks
-gymnasium[box2d,classic-control]>=1.0.0a1
-stable-baselines3>=2.0
-control
-
-# The following package is Linux-only
-# nvidia-cufile-cu12==1.11.1.6 ; platform_system != "Windows"
-
-# NOTE: TensorFlow version is defined in core.in. Avoid adding a second TF pin here.

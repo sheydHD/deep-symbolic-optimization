@@ -17,14 +17,14 @@ def setup_envs_run_rollouts(seed: int, rollout_length: int):
     for i, envs in enumerate(all_envs):
         for env_name, kwargs in envs.items():
             env = gym.make(env_name, **kwargs)
-            env.seed(seed)
             env.action_space.seed(seed)
             env.observation_space.seed(seed)
 
             results[env_name] = {}
 
-            obs = env.reset()
-            r, done = 0, False
+            obs, info = env.reset(seed=seed)
+            r, terminated, truncated = 0, False, False
+            done = False
             for i in range(rollout_length):
                 action = env.action_space.sample()
 
@@ -32,7 +32,8 @@ def setup_envs_run_rollouts(seed: int, rollout_length: int):
                 results[env_name]["reward"] = r
                 results[env_name]["done"] = done
 
-                obs, r, done, _ = env.step(action)
+                obs, r, terminated, truncated, _ = env.step(action)
+                done = terminated or truncated
 
             results[env_name]["state"] = obs
             results[env_name]["reward"] = r
