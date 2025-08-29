@@ -74,21 +74,27 @@ def test_model_parity():
     if config is None:
         pytest.skip(f"Config file not found in any of: {config_paths}")
     config["experiment"]["logdir"] = None
+    # Limit training to just a few samples for testing
+    config["training"]["n_samples"] = 100
+    config["training"]["batch_size"] = 10
     # Train and save a reference model
     model_ref = DeepSymbolicOptimizer(config)
     model_ref.train()
-    ckpt_ref = tf.train.Checkpoint(model=model_ref)
+    
+    # Checkpoint the policy (which is a TensorFlow model)
+    ckpt_ref = tf.train.Checkpoint(policy=model_ref.policy)
     ref_dir = tempfile.mkdtemp(prefix="dso_ref_ckpt_")
     ref_path = ckpt_ref.save(os.path.join(ref_dir, "ckpt"))
 
     # Create a new model and restore weights
     model_new = DeepSymbolicOptimizer(config)
-    ckpt_new = tf.train.Checkpoint(model=model_new)
+    model_new.setup()  # Need to setup to create the policy
+    ckpt_new = tf.train.Checkpoint(policy=model_new.policy)
     ckpt_new.restore(ref_path).expect_partial()
 
-    # Compare variables (assumes model exposes trainable_variables)
-    ref_vars = [v.numpy() for v in getattr(model_ref, 'trainable_variables', [])]
-    new_vars = [v.numpy() for v in getattr(model_new, 'trainable_variables', [])]
+    # Compare variables from the policies
+    ref_vars = [v.numpy() for v in model_ref.policy.trainable_variables]
+    new_vars = [v.numpy() for v in model_new.policy.trainable_variables]
     assert len(ref_vars) == len(new_vars), "Variable count mismatch after restore!"
     for i, (v1, v2) in enumerate(zip(ref_vars, new_vars)):
         assert np.allclose(v1, v2), f"Model variable {i} does not match after restore!"

@@ -8,7 +8,7 @@ def run_benchmark(config: str, benchmark: str | None = None) -> None:
     cfg_path = Path(config)
     if not cfg_path.exists():
         print(f"❌ Config file not found: {config}")
-        cfg_dir = PROJECT / "dso" / "dso" / "config" / "examples"
+        cfg_dir = PROJECT / "dso_pkg" / "dso" / "config" / "examples"
         if cfg_dir.exists():
             print("Available configs:")
             for c in cfg_dir.rglob("*.json"):

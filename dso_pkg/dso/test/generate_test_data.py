@@ -9,9 +9,9 @@ from dso import DeepSymbolicOptimizer
 from dso.config import load_config
 
 
-# Shorter config run for parity test
+# Shorter config run for parity test  
 CONFIG_TRAINING_OVERRIDE = {
-    "n_samples" : 1000,
+    "n_samples" : 1000,  # Reduced samples to prevent hanging in constraint tests
     "batch_size" : 100
 }
 

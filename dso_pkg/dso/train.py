@@ -453,7 +453,7 @@ class Trainer(tf.Module):
             "iteration" : self.iteration,
             "r_best" : self.r_best,
             "p_r_best_tokens" : self.p_r_best.tokens.tolist() if self.p_r_best is not None else None,
-            "priority_queue" : self.priority_queue.queue if self.priority_queue is not None else None
+            "priority_queue" : len(self.priority_queue.heap) if self.priority_queue is not None else None
         }
         with open(save_path, 'w') as f:
             json.dump(state_dict, f)

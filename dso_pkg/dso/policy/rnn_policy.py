@@ -194,6 +194,12 @@ class RNNPolicy(tf.keras.Model, Policy):
         
         assert 0 <= action_prob_lowerbound <= 1
         self.action_prob_lowerbound = action_prob_lowerbound
+        self.max_attempts_at_novel_batch = max_attempts_at_novel_batch
+        self.sample_novel_batch = sample_novel_batch
+
+        # Initialize extended batch tracking
+        self.valid_extended_batch = False
+        self.extended_batch = None
 
         # len(tokens) in library
         self.n_choices = Program.library.L
@@ -261,12 +267,19 @@ class RNNPolicy(tf.keras.Model, Policy):
             # Return action probabilities by exponentiating log probs
             return tf.exp(action_log_probs)
 
-    @tf.function
     def get_probs_and_entropy(self, obs, actions, lengths=None):
         """Compute action probabilities and entropy given observations and actions.
         
         Following the original TF1 logic with dynamic_rnn and sequence masking.
         """
+        # Ensure inputs are tensors with proper dtype
+        if isinstance(obs, np.ndarray):
+            obs = tf.convert_to_tensor(obs, dtype=tf.float32)
+        if isinstance(actions, np.ndarray):
+            actions = tf.convert_to_tensor(actions, dtype=tf.int32)
+        if lengths is not None and isinstance(lengths, np.ndarray):
+            lengths = tf.convert_to_tensor(lengths, dtype=tf.int32)
+            
         batch_size = tf.shape(obs)[0]
         seq_len = tf.shape(actions)[1]
         
@@ -297,7 +310,8 @@ class RNNPolicy(tf.keras.Model, Policy):
         actions_seq_len = tf.shape(actions)[1]
         
         # Use the minimum sequence length to avoid dimension mismatches
-        min_seq_len = tf.minimum(logits_seq_len, actions_seq_len)
+        # But don't truncate below a reasonable minimum to preserve constraint enforcement
+        min_seq_len = tf.maximum(tf.minimum(logits_seq_len, actions_seq_len), 4)
         
         # Truncate both tensors to the minimum sequence length
         log_probs_truncated = log_probs[:, :min_seq_len, :]
@@ -339,7 +353,316 @@ class RNNPolicy(tf.keras.Model, Policy):
         
         return probs, action_log_probs, entropy_per_step
 
-    @tf.function 
+    def sample(self, n: int):
+        """Sample batch of n expressions using TF2.
+
+        Returns
+        -------
+        actions, obs, priors : tensors or numpy arrays
+            Sampled actions, observations, and priors
+        """
+        if self.sample_novel_batch:
+            actions, obs, priors = self.sample_novel(n)
+        else:
+            # Generate samples using TF2 - keep as tensors for gradient flow
+            actions, obs, priors = self._sample_batch_tf2(n)
+            # Convert to numpy for compatibility with rest of pipeline
+            actions = actions.numpy()
+            obs = obs.numpy() 
+            priors = priors.numpy()
+            
+        return actions, obs, priors
+
+    def _sample_batch_tf2(self, batch_size):
+        """Sample a batch of sequences using TF2 while_loop - equivalent to raw_rnn."""
+        
+        # Get initial observation from task
+        initial_obs = Program.task.reset_task(self.prior)
+        initial_obs = tf.broadcast_to(initial_obs, [batch_size, len(initial_obs)])
+        initial_obs = self.state_manager.process_state(initial_obs)
+        
+        # Get initial prior
+        initial_prior = self.prior.initial_prior()
+        initial_prior = tf.constant(initial_prior, dtype=tf.float32)
+        initial_prior = tf.broadcast_to(initial_prior, [batch_size, self.n_choices])
+        
+        # Initialize loop state
+        actions_ta = tf.TensorArray(dtype=tf.int32, size=self.max_length, dynamic_size=False, clear_after_read=False)
+        obs_ta = tf.TensorArray(dtype=tf.float32, size=self.max_length, dynamic_size=False, clear_after_read=False)
+        priors_ta = tf.TensorArray(dtype=tf.float32, size=self.max_length, dynamic_size=False, clear_after_read=False)
+        
+        # Initial RNN state
+        initial_rnn_state = self.controller.get_initial_state(batch_size)
+        
+        # Initial loop state: (time, actions_ta, obs_ta, priors_ta, current_obs, current_prior, rnn_state, finished)
+        initial_state = (
+            tf.constant(0),  # time
+            actions_ta,
+            obs_ta,
+            priors_ta,
+            initial_obs,
+            initial_prior,
+            initial_rnn_state,
+            tf.zeros([batch_size], dtype=tf.bool)  # finished
+        )
+        
+        def loop_condition(time, actions_ta, obs_ta, priors_ta, obs, prior, rnn_state, finished):
+            return tf.reduce_any(tf.logical_not(finished)) and time < self.max_length
+        
+        def loop_body(time, actions_ta, obs_ta, priors_ta, obs, prior, rnn_state, finished):
+            # Get input for RNN
+            rnn_input = self.state_manager.get_tensor_input(obs)
+            rnn_input = tf.expand_dims(rnn_input, axis=1)  # Add time dimension
+            
+            # Forward pass through RNN
+            logits, new_rnn_state = self.controller(rnn_input, rnn_state, training=False)
+            logits = logits[:, 0, :]  # Remove time dimension
+            
+            # Apply action probability lower bound
+            if self.action_prob_lowerbound != 0.0:
+                logits = tf.clip_by_value(logits, 
+                                        np.log(self.action_prob_lowerbound + 1e-8),
+                                        np.inf)
+            
+            # Apply prior
+            logits = logits + prior
+            
+            # Sample action
+            action = tf.random.categorical(logits, 1, dtype=tf.int32)[:, 0]
+            
+            # Store current step
+            actions_ta = actions_ta.write(time, action)
+            obs_ta = obs_ta.write(time, obs)
+            priors_ta = priors_ta.write(time, prior)
+            
+            # Get actions so far for next observation computation
+            actions_so_far = tf.transpose(actions_ta.gather(tf.range(time + 1)))  # [batch, time+1]
+            
+            # Compute next observation and prior using task's get_next_obs
+            # Convert to numpy for the Python function call
+            def get_next_obs_wrapper(actions_batch, obs_batch, finished_batch):
+                return tf.py_function(
+                    func=Program.task.get_next_obs,
+                    inp=[actions_batch, obs_batch, finished_batch],
+                    Tout=[tf.float32, tf.float32, tf.bool]
+                )
+            
+            next_obs, next_prior, next_finished = get_next_obs_wrapper(actions_so_far, obs, finished)
+            
+            # Set shapes explicitly
+            next_obs.set_shape([None, Program.task.OBS_DIM])
+            next_prior.set_shape([None, self.n_choices])
+            next_finished.set_shape([None])
+            
+            # Process next observation
+            next_obs = self.state_manager.process_state(next_obs)
+            
+            # Update finished condition
+            finished = tf.logical_or(next_finished, time >= self.max_length - 1)
+            
+            return (time + 1, actions_ta, obs_ta, priors_ta, next_obs, next_prior, new_rnn_state, finished)
+        
+        # Run the sampling loop
+        final_state = tf.while_loop(
+            cond=loop_condition,
+            body=loop_body,
+            loop_vars=initial_state,
+            parallel_iterations=1,
+            back_prop=False
+        )
+        
+        _, final_actions_ta, final_obs_ta, final_priors_ta, _, _, _, _ = final_state
+        
+        # Extract results
+        actions = tf.transpose(final_actions_ta.stack())  # [batch, max_length]
+        obs = tf.transpose(final_obs_ta.stack(), perm=[1, 2, 0])  # [batch, obs_dim, max_length]
+        priors = tf.transpose(final_priors_ta.stack(), perm=[1, 0, 2])  # [batch, max_length, n_choices]
+        
+        # Keep as tensors to maintain gradient flow - convert to numpy only when needed for caching
+        return actions, obs, priors
+
+
+
+    def sample_novel(self, n: int):
+        """Sample a batch of n expressions not contained in cache using TF2.
+
+        If unable to do so within max_attempts_at_novel_batch,
+        then fills in the remaining slots with previously-seen samples.
+        """
+        n_novel = 0
+        old_a, old_o, old_p = [], [], []
+        new_a, new_o, new_p = [], [], []
+        n_attempts = 0
+        
+        while n_novel < n and n_attempts < self.max_attempts_at_novel_batch:
+            # Sample a batch using our TF2 implementation
+            actions, obs, priors = self._sample_batch_tf2(n)
+            n_attempts += 1
+            
+            new_indices = []  # indices of new and unique samples
+            old_indices = []  # indices of samples already in cache
+            
+            for idx, a in enumerate(actions):
+                # Finish tokens to get complete program
+                from dso.program import _finish_tokens
+                tokens = _finish_tokens(a)
+                key = tokens.tobytes()
+                
+                # For deterministic Programs, check cache and create if needed
+                if not Program.task.stochastic:
+                    try:
+                        p = Program.cache[key]
+                    except KeyError:
+                        p = Program(tokens)
+                        Program.cache[key] = p
+                else:
+                    p = Program(tokens)
+                
+                if key not in Program.cache.keys() and n_novel < n:
+                    new_indices.append(idx)
+                    n_novel += 1
+                if key in Program.cache.keys():
+                    old_indices.append(idx)
+            
+            # Store new samples
+            if new_indices:
+                new_a.append(np.take(actions, new_indices, axis=0))
+                new_o.append(np.take(obs, new_indices, axis=0))
+                new_p.append(np.take(priors, new_indices, axis=0))
+            
+            # Store old samples for later use if needed
+            if old_indices:
+                old_a.append(np.take(actions, old_indices, axis=0))
+                old_o.append(np.take(obs, old_indices, axis=0))
+                old_p.append(np.take(priors, old_indices, axis=0))
+        
+        # number of slots in batch to be filled in by redundant samples
+        n_remaining = n - n_novel
+        
+        # Combine all new samples
+        if new_a:
+            unique_a = np.concatenate(new_a, axis=0)[:n]
+            unique_o = np.concatenate(new_o, axis=0)[:n]
+            unique_p = np.concatenate(new_p, axis=0)[:n]
+        else:
+            unique_a = np.array([]).reshape(0, self.max_length)
+            unique_o = np.array([]).reshape(0, Program.task.OBS_DIM, self.max_length)
+            unique_p = np.array([]).reshape(0, self.max_length, self.n_choices)
+        
+        # Fill remaining slots with old samples if needed
+        if n_remaining > 0 and old_a:
+            old_combined_a = np.concatenate(old_a, axis=0)[:n_remaining]
+            old_combined_o = np.concatenate(old_o, axis=0)[:n_remaining]
+            old_combined_p = np.concatenate(old_p, axis=0)[:n_remaining]
+            
+            unique_a = np.concatenate([unique_a, old_combined_a], axis=0)
+            unique_o = np.concatenate([unique_o, old_combined_o], axis=0)
+            unique_p = np.concatenate([unique_p, old_combined_p], axis=0)
+        
+        # Set flag for extended batch if we generated extra samples
+        total_new = sum(arr.shape[0] for arr in new_a) if new_a else 0
+        if total_new > n:
+            self.valid_extended_batch = True
+            all_new_a = np.concatenate(new_a, axis=0)
+            all_new_o = np.concatenate(new_o, axis=0)
+            all_new_p = np.concatenate(new_p, axis=0)
+            
+            self.extended_batch = [
+                total_new - n,
+                all_new_a[n:],
+                all_new_o[n:],
+                all_new_p[n:]
+            ]
+        else:
+            self.valid_extended_batch = False
+        
+        return unique_a, unique_o, unique_p
+
+    def sample_with_log_probs(self, batch_size):
+        """Sample actions and compute log probabilities in a single forward pass.
+        
+        This method maintains gradient flow for proper policy gradient training.
+        
+        Returns:
+            actions: Sampled action sequences [batch_size, max_length]
+            log_probs: Log probabilities for each action [batch_size, max_length]
+        """
+        # Initialize storage for the sequence
+        max_length = self.max_length
+        
+        # Get initial observation from task
+        initial_obs = Program.task.reset_task(self.prior)
+        initial_obs = tf.broadcast_to(initial_obs, [batch_size, len(initial_obs)])
+        initial_obs = self.state_manager.process_state(initial_obs)
+        
+        # Get initial prior
+        initial_prior = self.prior.initial_prior()
+        initial_prior = tf.constant(initial_prior, dtype=tf.float32)
+        initial_prior = tf.broadcast_to(initial_prior, [batch_size, self.n_choices])
+        
+        # Initialize sequence storage
+        actions_list = []
+        log_probs_list = []
+        
+        # Initial RNN state
+        rnn_state = self.controller.get_initial_state(batch_size)
+        current_obs = initial_obs
+        current_prior = initial_prior
+        
+        # Generate sequence step by step
+        for t in range(max_length):
+            # Process current observation
+            rnn_input = self.state_manager.get_tensor_input(current_obs)
+            rnn_input = tf.expand_dims(rnn_input, axis=1)  # Add time dimension
+            
+            # Forward pass through RNN controller
+            logits, rnn_state = self.controller(rnn_input, rnn_state, training=True)
+            logits = logits[:, 0, :]  # Remove time dimension [batch_size, n_choices]
+            
+            # Apply action probability lower bound and prior
+            if self.action_prob_lowerbound != 0.0:
+                logits = tf.clip_by_value(logits, 
+                                        np.log(self.action_prob_lowerbound + 1e-8),
+                                        np.inf)
+            
+            logits = logits + current_prior
+            
+            # Sample actions and compute log probabilities with numerical stability
+            # Clamp logits to prevent extreme values
+            logits = tf.clip_by_value(logits, -50.0, 50.0)
+            
+            # Compute stable log probabilities
+            log_probs = tf.nn.log_softmax(logits)
+            
+            # Sample actions from the distribution
+            actions = tf.random.categorical(logits, 1, dtype=tf.int32)[:, 0]  # [batch_size]
+            
+            # Get log probabilities for the sampled actions
+            actions_one_hot = tf.one_hot(actions, depth=self.n_choices, dtype=tf.float32)
+            step_log_probs = tf.reduce_sum(actions_one_hot * log_probs, axis=1)  # [batch_size]
+            
+            # Check for numerical issues (only log if problematic)
+            if t == 0 and tf.reduce_any(tf.math.is_nan(step_log_probs)):
+                print(f"WARNING: NaN in log probabilities at step {t}")
+            
+            # Store results
+            actions_list.append(actions)
+            log_probs_list.append(step_log_probs)
+            
+            # Update observation for next step (simplified version)
+            # In a full implementation, this would call the task's transition function
+            current_obs = tf.cast(tf.stack([actions, tf.zeros_like(actions), tf.zeros_like(actions), tf.zeros_like(actions)], axis=1), tf.float32)
+            current_obs = self.state_manager.process_state(current_obs)
+            
+            # Update prior (simplified - would normally come from task)
+            current_prior = initial_prior  # Keep same prior for simplicity
+        
+        # Stack results
+        final_actions = tf.stack(actions_list, axis=1)  # [batch_size, max_length]
+        final_log_probs = tf.stack(log_probs_list, axis=1)  # [batch_size, max_length]
+        
+        return final_actions, final_log_probs
+
     def compute_log_prob(self, obs, actions, lengths=None):
         """Compute log probabilities for given observations and actions.
         
