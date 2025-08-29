@@ -283,12 +283,12 @@ class LogEval():
         """Generates a summary of important experiment outcomes."""
         print("\n-- ANALYZING LOG START --------------")
         try:
-            print("Task_____________{}".format(self.config["task"]["task_type"]))
+            print(f"Task_____________{self.config['task']['task_type']}")
             print(f"Source path______{self.save_path}")
             print(f"Runs_____________{self.n_seeds}")
-            print("Max Samples/run__{}".format(self.config["training"]["n_samples"]))
+            print(f"Max Samples/run__{self.config['training']['n_samples']}")
             if "success_rate" in self.metrics:
-                print("Success_rate_____{}".format(self.metrics["success_rate"]))
+                print(f"Success_rate_____{self.metrics['success_rate']}")
             if len(self.warnings) > 0:
                 print("Found issues:")
                 for warning in range(len(self.warnings)):

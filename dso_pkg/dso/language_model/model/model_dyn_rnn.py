@@ -70,25 +70,36 @@ class LanguageModel(tf.keras.Model):
         self.output_projection = tf.keras.layers.Dense(vocabulary_size, name='output_projection')
         self.dropout = tf.keras.layers.Dropout(0.5)
     
-    def call(self, x, initial_state=None, training=None):
-        """Forward pass through the language model."""
+    def call(self, x, seq_len=None, initial_state=None, training=None):
+        """Forward pass through the language model. Optionally uses sequence lengths for masking (strict TF1 equivalence)."""
         # Embedding
         embedded = self.embedding(x)
         embedded = self.dropout(embedded, training=training)
-        
+
+        # If sequence lengths are provided, create a mask
+        mask = None
+        if seq_len is not None:
+            # Assume x shape: (batch, time)
+            maxlen = tf.shape(x)[1]
+            mask = tf.sequence_mask(seq_len, maxlen)
+
         # LSTM layers
         lstm_output = embedded
         states = []
-        
+
         for i, lstm_layer in enumerate(self.lstm_layers):
             init_state = initial_state[i] if initial_state else None
-            lstm_output, h_state, c_state = lstm_layer(lstm_output, initial_state=init_state, training=training)
+            # Pass mask only to the first LSTM layer (Keras propagates it)
+            if i == 0 and mask is not None:
+                lstm_output, h_state, c_state = lstm_layer(lstm_output, initial_state=init_state, training=training, mask=mask)
+            else:
+                lstm_output, h_state, c_state = lstm_layer(lstm_output, initial_state=init_state, training=training)
             states.append([h_state, c_state])
-        
+
         # Output projection
         logits = self.output_projection(lstm_output)
-        
-        return logits, states
+
+        return logits, states, mask
     
     def get_initial_state(self, batch_size):
         """Get initial states for all LSTM layers."""

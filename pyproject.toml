@@ -60,4 +60,4 @@ package-dir = { "" = "dso_pkg" }
 where = ["dso_pkg"]
 
 [project.scripts]
-dso = "dso.cli:main"
+dso = "dso.run:main"

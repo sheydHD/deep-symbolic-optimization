@@ -63,26 +63,29 @@ class PGPolicyOptimizer(PolicyOptimizer):
 
     @tf.function
     def _compute_loss(self, batch):
-        """Compute policy gradient loss using TF2."""
-        # Get rewards from batch
-        r = tf.cast(batch.rewards, tf.float32)  # Ensure float32 type
-        
-        # Compute log probabilities and entropy
-        log_probs = self.policy.compute_log_prob(batch.obs, batch.actions)
-        
-        # Baseline is the mean of current rewards
+        """Compute policy gradient loss using TF2. Sums log_probs over sequence and applies mask if available."""
+        r = tf.cast(batch.rewards, tf.float32)  # [batch]
+        # Pass lengths to compute_log_prob for proper sequence masking
+        lengths = batch.lengths if hasattr(batch, 'lengths') else None
+        log_probs = self.policy.compute_log_prob(batch.obs, batch.actions, lengths)  # [batch, seq]
         baseline = tf.reduce_mean(r)
-        
-        # Compute policy gradient loss
-        advantages = r - baseline
-        pg_loss = -tf.reduce_mean(advantages * log_probs)
-        
+        advantages = r - baseline  # [batch]
+
+        # Try to use mask if available (for variable-length sequences)
+        mask = None
+        if hasattr(batch, 'lengths') and batch.lengths is not None:
+            seq_len = tf.shape(log_probs)[1]
+            mask = tf.sequence_mask(batch.lengths, maxlen=seq_len, dtype=tf.float32)  # [batch, seq]
+            log_probs = log_probs * mask
+
+        # Sum log_probs over sequence dimension
+        log_probs_summed = tf.reduce_sum(log_probs, axis=1)  # [batch]
+        pg_loss = -tf.reduce_mean(advantages * log_probs_summed)
+
         # Add entropy regularization
         _, _, entropy = self.policy.get_probs_and_entropy(batch.obs, batch.actions)
         entropy_loss = -self.entropy_weight * tf.reduce_mean(entropy)
-        
         total_loss = pg_loss + entropy_loss
-        
         return total_loss, pg_loss, entropy_loss
 
     @tf.function

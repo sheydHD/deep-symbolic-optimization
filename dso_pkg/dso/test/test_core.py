@@ -16,24 +16,33 @@ def model():
     return DeepSymbolicOptimizer(config)
 
 
-@pytest.mark.parametrize("config", ["dso/config/config_regression.json",
-                                    "dso/config/config_control.json"])
+@pytest.mark.parametrize("config", ["dso_pkg/dso/config/config_regression.json",
+                                    "dso_pkg/dso/config/config_control.json"])
 def test_task(model, config):
     """Test that Tasks do not crash for various configs."""
     
-    try:
-        config = load_config(config)
-    except FileNotFoundError:
-        # Fix path if needed
-        if "dso/config/" in config:
-            new_config = config.replace("dso/config/", "dso/dso/config/")
-            try:
-                config = load_config(new_config)
-            except FileNotFoundError:
-                pytest.skip(f"Config file not found: {config}")
-        else:
-            pytest.skip(f"Config file not found: {config}")
-            
+    import os
+    
+    # Try multiple possible config paths
+    config_paths = [
+        config,  # Direct path
+        os.path.join("dso_pkg", "dso", "config", os.path.basename(config)),  # Current structure
+        os.path.join("dso", "dso", "config", os.path.basename(config)),  # Original structure  
+        os.path.join(os.path.dirname(__file__), "..", "config", os.path.basename(config))  # Relative
+    ]
+    
+    config_loaded = None
+    for config_path in config_paths:
+        try:
+            config_loaded = load_config(config_path)
+            break
+        except FileNotFoundError:
+            continue
+    
+    if config_loaded is None:
+        pytest.skip(f"Config file not found in any of: {config_paths}")
+        
+    config = config_loaded
     config["experiment"]["logdir"] = None # Turn off saving results
     model.set_config(config)
     model.config_training.update({"n_samples" : 10,
@@ -45,7 +54,25 @@ def test_task(model, config):
 def test_model_parity():
     """Test that a saved and restored model has identical weights (TF2.x parity test)."""
     import tempfile
-    config = load_config("dso/config/config_regression.json")
+    import os
+    
+    # Try multiple possible config paths
+    config_paths = [
+        "dso_pkg/dso/config/config_regression.json",
+        "dso/dso/config/config_regression.json", 
+        os.path.join(os.path.dirname(__file__), "..", "config", "config_regression.json")
+    ]
+    
+    config = None
+    for config_path in config_paths:
+        try:
+            config = load_config(config_path)
+            break
+        except FileNotFoundError:
+            continue
+    
+    if config is None:
+        pytest.skip(f"Config file not found in any of: {config_paths}")
     config["experiment"]["logdir"] = None
     # Train and save a reference model
     model_ref = DeepSymbolicOptimizer(config)

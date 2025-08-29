@@ -1,6 +1,8 @@
 import tensorflow as tf
+import numpy as np
 from dso.policy_optimizer import PolicyOptimizer
 from dso.policy import Policy
+from dso.memory import Batch
 from dso.utils import create_batch_spec, convert_batch_to_tensors
 
 class PQTPolicyOptimizer(PolicyOptimizer):
@@ -8,9 +10,6 @@ class PQTPolicyOptimizer(PolicyOptimizer):
 
     Parameters
     ----------
-    policy : Policy
-        The policy to optimize.
-        
     pqt_k : int
         Size of priority queue.
 
@@ -23,31 +22,10 @@ class PQTPolicyOptimizer(PolicyOptimizer):
     pqt_use_pg : bool
         Use policy gradient loss when using PQT?   
         
-    debug : int
-        Debug level.
-        
-    summary : bool
-        Whether to write summaries.
-        
-    logdir : str
-        Directory for logging.
-        
-    optimizer : str
-        Optimizer type ('adam', 'rmsprop', 'sgd').
-        
-    learning_rate : float
-        Learning rate for optimization.
-        
-    entropy_weight : float
-        Weight for entropy regularization.
-        
-    entropy_gamma : float
-        Gamma for entropy decay.
     """
-    
-    def __init__(self,
+    def __init__(self, 
             policy : Policy,
-            debug : int = 0,
+            debug : int = 0, 
             summary : bool = False,
             logdir : str = None,
             # Optimizer hyperparameters
@@ -59,20 +37,18 @@ class PQTPolicyOptimizer(PolicyOptimizer):
             # PQT hyperparameters
             pqt_k : int = 10,
             pqt_batch_size : int = 1,
-            pqt_weight : float = 0.1,
-            pqt_use_pg : bool = False,
-            pqt_mix_with_top : bool = True) -> None:
+            pqt_weight : float = 200.0,
+            pqt_use_pg: bool = False) -> None:
         
-        # PQT specific parameters
         self.pqt_k = pqt_k
         self.pqt_batch_size = pqt_batch_size
         self.pqt_weight = pqt_weight
         self.pqt_use_pg = pqt_use_pg
-        self.pqt_mix_with_top = pqt_mix_with_top
         
+        # Call parent constructor (TF2.x version)
         super().__init__(policy, debug, summary, logdir, optimizer, learning_rate, entropy_weight, entropy_gamma)
         
-        # Create optimizer
+        # Create optimizer (TF2.x style)
         if optimizer == 'adam':
             self.optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
         elif optimizer == 'rmsprop':
@@ -81,128 +57,115 @@ class PQTPolicyOptimizer(PolicyOptimizer):
             self.optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate)
         else:
             raise ValueError(f"Unknown optimizer: {optimizer}")
-        
-        # Initialize priority queue (as Python list for simplicity)
-        self.priority_queue = []
-
-    def update_priority_queue(self, batch):
-        """Update priority queue with new batch."""
-        # Add new samples to queue
-        for i in range(len(batch.rewards)):
-            sample = {
-                'actions': batch.actions[i],
-                'obs': batch.obs[i], 
-                'priors': batch.priors[i],
-                'lengths': batch.lengths[i],
-                'reward': batch.rewards[i],
-                'on_policy': batch.on_policy[i]
-            }
-            self.priority_queue.append(sample)
-        
-        # Sort by reward (descending) and keep top k
-        self.priority_queue.sort(key=lambda x: x['reward'], reverse=True)
-        self.priority_queue = self.priority_queue[:self.pqt_k]
 
     def _set_loss(self):
-        """Set the loss function for PQT (required abstract method)."""
-        # For PQT, loss is computed dynamically in _compute_loss
-        # This method is required by the abstract base class but is a no-op for PQT
+        """Set the loss function for PQT (required abstract method).
+        
+        In TF2.x, we don't pre-define loss computation with placeholders.
+        Loss is computed dynamically in train_step.
+        """
+        # This method is required by the abstract base class but is a no-op for TF2.x
         pass
 
-    @tf.function
-    def _compute_loss(self, batch, pqt_batch=None):
-        """Compute PQT loss using TF2."""
-        # Get rewards from batch
-        r = batch.rewards
+    def _compute_loss(self, obs, actions, rewards):
+        """Compute the loss function (required abstract method).
         
-        # Compute log probabilities and entropy
-        log_probs = self.policy.compute_log_prob(batch.obs, batch.actions)
-        _, _, entropy = self.policy.get_probs_and_entropy(batch.obs, batch.actions)
+        In TF2.x implementation, actual loss computation happens in train_step.
+        This method exists to satisfy the abstract interface.
+        """
+        # This method is required by the abstract base class
+        # For PQT, the actual loss computation is more complex and happens in train_step
+        log_probs = self.policy.compute_log_prob(obs, actions)
+        baseline = tf.reduce_mean(rewards)
+        advantages = rewards - baseline
         
-        # Standard policy gradient loss
-        baseline = tf.reduce_mean(r)
-        advantages = r - baseline
-        # Ensure data types match for multiplication
+        # Handle tensor shapes
         advantages = tf.cast(advantages, tf.float32)
         log_probs = tf.cast(log_probs, tf.float32)
-        pg_loss = -tf.reduce_mean(advantages * log_probs)
         
-        # PQT loss (if we have priority queue samples)
-        pqt_loss = 0.0
-        if pqt_batch is not None:
-            pqt_log_probs = self.policy.compute_log_prob(pqt_batch.obs, pqt_batch.actions)
-            pqt_advantages = pqt_batch.rewards - tf.cast(baseline, pqt_batch.rewards.dtype)
-            pqt_loss = -tf.reduce_mean(pqt_advantages * pqt_log_probs)
-        
-        # Combine losses
-        if self.pqt_use_pg:
-            total_loss = pg_loss + self.pqt_weight * pqt_loss
-        else:
-            total_loss = self.pqt_weight * pqt_loss
+        if len(tf.shape(log_probs)) > 1:
+            log_probs = tf.reduce_sum(log_probs, axis=1)
             
-        # Add entropy regularization
-        entropy_loss = -self.entropy_weight * tf.reduce_mean(entropy)
-        total_loss += entropy_loss
-        
-        return total_loss, pg_loss, pqt_loss, entropy_loss
+        loss = -tf.reduce_mean(advantages * log_probs)
+        return loss
 
-    @tf.function
-    def train_step(self, baseline, sampled_batch, pqt_batch=None):
-        """Perform one training step using TF2 GradientTape."""
-        with tf.GradientTape() as tape:
-            total_loss, pg_loss, pqt_loss, entropy_loss = self._compute_loss(sampled_batch, pqt_batch)
+    def _preppend_to_summary(self):
+        """Add additional fields for the tensorflow summary.
         
-        # Compute gradients
-        gradients = tape.gradient(total_loss, self.policy.controller.trainable_variables)
-        
-        # Apply gradients
-        self.optimizer.apply_gradients(zip(gradients, self.policy.controller.trainable_variables))
-        
-        return {
-            'total_loss': total_loss,
-            'pg_loss': pg_loss,
-            'pqt_loss': pqt_loss,
-            'entropy_loss': entropy_loss
-        }
+        In TF2.x, summaries are written directly in train_step.
+        """
+        # This method is required by the abstract base class but is a no-op for TF2.x
+        pass
 
-    def train(self, baseline, sampled_batch):
-        """Train the policy with PQT algorithm."""
-        # Convert batch to tensors if needed
+    def train_step(self, baseline, sampled_batch, pqt_batch):
+        """Perform one training step using TF2 GradientTape.
+        
+        Maintains the original TF1.x interface: train_step(baseline, sampled_batch, pqt_batch)
+        """
+        # Convert batches to tensors if needed
         if not isinstance(sampled_batch.actions, tf.Tensor):
             sampled_batch = convert_batch_to_tensors(sampled_batch)
+        if pqt_batch is not None and not isinstance(pqt_batch.actions, tf.Tensor):
+            pqt_batch = convert_batch_to_tensors(pqt_batch)
         
-        # Update priority queue
-        self.update_priority_queue(sampled_batch)
-        
-        # Sample from priority queue if it has enough samples
-        pqt_batch = None
-        if len(self.priority_queue) >= self.pqt_batch_size:
-            # Sample from priority queue
-            import random
-            pqt_samples = random.choices(self.priority_queue, k=self.pqt_batch_size)
+        # Perform training step with GradientTape
+        with tf.GradientTape() as tape:
+            # Compute standard policy gradient loss
+            r = sampled_batch.rewards
+            log_probs = self.policy.compute_log_prob(sampled_batch.obs, sampled_batch.actions)
+            _, _, entropy = self.policy.get_probs_and_entropy(sampled_batch.obs, sampled_batch.actions)
             
-            # Convert to batch format
-            from dso.memory import Batch
-            import numpy as np
+            baseline_val = tf.reduce_mean(r)
+            advantages = r - baseline_val
             
-            pqt_batch = Batch(
-                actions=tf.stack([s['actions'] for s in pqt_samples]),
-                obs=tf.stack([s['obs'] for s in pqt_samples]),
-                priors=tf.stack([s['priors'] for s in pqt_samples]), 
-                lengths=tf.stack([s['lengths'] for s in pqt_samples]),
-                rewards=tf.stack([s['reward'] for s in pqt_samples]),
-                on_policy=tf.stack([s['on_policy'] for s in pqt_samples])
-            )
+            # Cast to ensure compatible types
+            advantages = tf.cast(advantages, tf.float32)
+            log_probs = tf.cast(log_probs, tf.float32)
+            
+            # Handle tensor shape: sum log_probs across sequence if needed
+            if len(tf.shape(log_probs)) > 1:
+                log_probs_sum = tf.reduce_sum(log_probs, axis=1)
+            else:
+                log_probs_sum = log_probs
+                
+            pg_loss = -tf.reduce_mean(advantages * log_probs_sum)
+            
+            # Compute PQT loss (original functionality)
+            if pqt_batch is not None:
+                pqt_log_probs = self.policy.compute_log_prob(pqt_batch.obs, pqt_batch.actions)
+                pqt_log_probs = tf.cast(pqt_log_probs, tf.float32)
+                
+                # Handle tensor shape for PQT loss too
+                if len(tf.shape(pqt_log_probs)) > 1:
+                    pqt_neglogp = -tf.reduce_sum(pqt_log_probs, axis=1)
+                else:
+                    pqt_neglogp = -pqt_log_probs
+                    
+                pqt_loss = self.pqt_weight * tf.reduce_mean(pqt_neglogp)
+            else:
+                pqt_loss = 0.0
+            
+            # Entropy loss (same as original)
+            entropy_loss = -self.entropy_weight * tf.reduce_mean(entropy)
+            
+            # Total loss (preserve original logic)
+            if self.pqt_use_pg:
+                total_loss = pg_loss + pqt_loss + entropy_loss
+            else:
+                total_loss = pqt_loss + entropy_loss
+
+        # Compute and apply gradients
+        gradients = tape.gradient(total_loss, self.policy.controller.trainable_variables)
+        self.optimizer.apply_gradients(zip(gradients, self.policy.controller.trainable_variables))
         
-        # Perform training step
-        metrics = self.train_step(sampled_batch, pqt_batch)
-        
-        # Log metrics if summary is enabled
+        # Write summaries (TF2.x style)
         if self.summary and self.logdir:
             with tf.summary.create_file_writer(self.logdir).as_default():
-                tf.summary.scalar("total_loss", metrics['total_loss'])
-                tf.summary.scalar("pg_loss", metrics['pg_loss'])
-                tf.summary.scalar("pqt_loss", metrics['pqt_loss'])
-                tf.summary.scalar("entropy_loss", metrics['entropy_loss'])
+                tf.summary.scalar("pqt_loss", pqt_loss)
+                tf.summary.scalar("pg_loss", pg_loss)
+                tf.summary.scalar("entropy_loss", entropy_loss)
+                tf.summary.scalar("total_loss", total_loss)
         
-        return metrics
+        # Return empty dict to maintain interface compatibility
+        # (Original returned summaries, but we handle that internally now)
+        return {}

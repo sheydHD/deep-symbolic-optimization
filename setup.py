@@ -1,13 +1,14 @@
 from setuptools import setup, Extension
-from Cython.Build import cythonize
 import numpy
+from Cython.Build import cythonize
 
 setup(
     ext_modules=cythonize([
         Extension(
             "dso.cyfunc",
-            ["dso/cyfunc.pyx"],
+            ["dso_pkg/dso/cyfunc.pyx"],
             include_dirs=[numpy.get_include()],
+            extra_compile_args=["-O3"],
         )
     ]),
     zip_safe=False,

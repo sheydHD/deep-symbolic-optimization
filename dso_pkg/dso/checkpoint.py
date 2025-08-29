@@ -5,7 +5,7 @@ import tensorflow as tf
 import numpy as np
 import pandas as pd
 
-from dso.program import Program, from_tokens
+from .program import Program, from_tokens
 
 
 class Checkpoint():

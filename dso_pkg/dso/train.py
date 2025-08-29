@@ -452,7 +452,8 @@ class Trainer(tf.Module):
             "nevals" : self.nevals,
             "iteration" : self.iteration,
             "r_best" : self.r_best,
-            "p_r_best_tokens" : self.p_r_best.tokens.tolist() if self.p_r_best is not None else None
+            "p_r_best_tokens" : self.p_r_best.tokens.tolist() if self.p_r_best is not None else None,
+            "priority_queue" : self.priority_queue.queue if self.priority_queue is not None else None
         }
         with open(save_path, 'w') as f:
             json.dump(state_dict, f)
@@ -474,8 +475,14 @@ class Trainer(tf.Module):
         # Load r_best and p_r_best
         if state_dict["p_r_best_tokens"] is not None:
             tokens = np.array(state_dict["p_r_best_tokens"], dtype=np.int32)
+            # Assuming from_tokens is available and correctly reconstructs the program
+            from dso.program import from_tokens
             self.p_r_best = from_tokens(tokens)
         else:
             self.p_r_best = None
+
+        # Load priority_queue
+        if self.priority_queue is not None and "priority_queue" in state_dict and state_dict["priority_queue"] is not None:
+            self.priority_queue.queue = state_dict["priority_queue"]
 
         print(f"Loaded Trainer state from {load_path}.")

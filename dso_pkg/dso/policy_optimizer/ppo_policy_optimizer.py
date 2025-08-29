@@ -48,12 +48,17 @@ class PPOPolicyOptimizer(PolicyOptimizer):
             # Loss hyperparameters
             entropy_weight : float = 0.005,
             entropy_gamma : float = 1.0,
-            # PPO hyperparameters
-            eps_clip : float = 0.2) -> None:
+            # PPO hyperparameters (preserve original parameter names)
+            ppo_clip_ratio : float = 0.2,
+            ppo_n_iters : int = 10,
+            ppo_n_mb : int = 4) -> None:
         super().__init__(policy, debug, summary, logdir, optimizer, learning_rate, entropy_weight, entropy_gamma)
         
-        # Parameters specific for the algorithm
-        self.eps_clip = eps_clip
+        # Parameters specific for the algorithm (preserve original naming)
+        self.ppo_clip_ratio = ppo_clip_ratio
+        self.ppo_n_iters = ppo_n_iters
+        self.ppo_n_mb = ppo_n_mb
+        self.rng = np.random.RandomState(0)  # Used for PPO minibatch sampling
         
         # Create optimizer
         if optimizer == 'adam':
@@ -88,9 +93,9 @@ class PPOPolicyOptimizer(PolicyOptimizer):
         baseline = tf.reduce_mean(r)
         advantages = r - baseline
         
-        # PPO clipped surrogate loss
+        # PPO clipped surrogate loss (use original parameter name)
         surr1 = ratio * advantages
-        surr2 = tf.clip_by_value(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip) * advantages
+        surr2 = tf.clip_by_value(ratio, 1.0 - self.ppo_clip_ratio, 1.0 + self.ppo_clip_ratio) * advantages
         ppo_loss = -tf.reduce_mean(tf.minimum(surr1, surr2))
         
         # Add entropy regularization
@@ -100,9 +105,63 @@ class PPOPolicyOptimizer(PolicyOptimizer):
         
         return total_loss, ppo_loss, entropy_loss
 
+    def train_step(self, baseline, sampled_batch):
+        """Perform one training step using TF2 GradientTape.
+        
+        Maintains the original TF1.x interface: train_step(baseline, sampled_batch)
+        Implements multiple PPO iterations and minibatching as per original.
+        """
+        # Convert batch to tensors if needed
+        if not isinstance(sampled_batch.actions, tf.Tensor):
+            from dso.utils import convert_batch_to_tensors
+            sampled_batch = convert_batch_to_tensors(sampled_batch)
+        
+        n_samples = sampled_batch.rewards.shape[0]
+        
+        # Compute old log probabilities before updating policy
+        old_log_probs = self.policy.compute_log_prob(sampled_batch.obs, sampled_batch.actions)
+        old_log_probs = tf.stop_gradient(old_log_probs)  # Don't compute gradients through old policy
+        
+        # Perform multiple steps of minibatch training (preserve original PPO logic)
+        indices = np.arange(n_samples)
+        
+        total_metrics = {'total_loss': 0.0, 'ppo_loss': 0.0, 'entropy_loss': 0.0}
+        
+        for ppo_iter in range(self.ppo_n_iters):
+            self.rng.shuffle(indices)  # in-place
+            # list of [ppo_n_mb] arrays
+            minibatches = np.array_split(indices, self.ppo_n_mb)
+            
+            for i, mb in enumerate(minibatches):
+                # Create minibatch
+                from dso.memory import Batch
+                sampled_batch_mb = Batch(
+                    actions=tf.gather(sampled_batch.actions, mb),
+                    obs=tf.gather(sampled_batch.obs, mb),
+                    priors=tf.gather(sampled_batch.priors, mb),
+                    lengths=tf.gather(sampled_batch.lengths, mb),
+                    rewards=tf.gather(sampled_batch.rewards, mb),
+                    on_policy=tf.gather(sampled_batch.on_policy, mb)
+                )
+                old_log_probs_mb = tf.gather(old_log_probs, mb)
+                
+                # Perform one gradient step on minibatch
+                metrics = self._internal_train_step(sampled_batch_mb, old_log_probs_mb)
+                
+                # Accumulate metrics
+                for key in total_metrics:
+                    total_metrics[key] += metrics[key]
+        
+        # Average metrics
+        num_steps = self.ppo_n_iters * self.ppo_n_mb
+        for key in total_metrics:
+            total_metrics[key] /= num_steps
+        
+        return total_metrics
+
     @tf.function
-    def train_step(self, batch, old_log_probs):
-        """Perform one training step using TF2 GradientTape."""
+    def _internal_train_step(self, batch, old_log_probs):
+        """Internal training step for one minibatch."""
         with tf.GradientTape() as tape:
             total_loss, ppo_loss, entropy_loss = self._compute_loss(batch, old_log_probs)
         
@@ -118,25 +177,4 @@ class PPOPolicyOptimizer(PolicyOptimizer):
             'entropy_loss': entropy_loss
         }
 
-    def train(self, baseline, sampled_batch):
-        """Train the policy with PPO algorithm."""
-        # Convert batch to tensors if needed
-        if not isinstance(sampled_batch.actions, tf.Tensor):
-            from dso.utils import convert_batch_to_tensors
-            sampled_batch = convert_batch_to_tensors(sampled_batch)
-        
-        # Get old log probabilities (for first iteration, use current)
-        old_log_probs = self.policy.compute_log_prob(sampled_batch.obs, sampled_batch.actions)
-        old_log_probs = tf.stop_gradient(old_log_probs)  # Don't compute gradients through old policy
-        
-        # Perform training step
-        metrics = self.train_step(sampled_batch, old_log_probs)
-        
-        # Log metrics if summary is enabled
-        if self.summary and self.logdir:
-            with tf.summary.create_file_writer(self.logdir).as_default():
-                tf.summary.scalar("total_loss", metrics['total_loss'])
-                tf.summary.scalar("ppo_loss", metrics['ppo_loss']) 
-                tf.summary.scalar("entropy_loss", metrics['entropy_loss'])
-        
-        return metrics
+
