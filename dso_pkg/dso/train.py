@@ -35,7 +35,7 @@ class Trainer(tf.Module):
 
         Parameters
         ----------
-        policy : dso.policy.Policy
+        os.makedirs(logdir, exist_ok=True)
             Parametrized probability distribution over discrete objects.
             Used to generate programs and compute loglikelihoods.
 
