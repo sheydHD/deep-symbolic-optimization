@@ -1,5 +1,9 @@
 {
-   "task" : {
-      "dataset" : "Nguyen-2"
-   }
+  "task": {
+    "dataset": "Nguyen-2"
+  },
+  "training": {
+    "n_samples": 300000,
+    "early_stopping": true
+  }
 }

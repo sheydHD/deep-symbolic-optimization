@@ -26,7 +26,10 @@ dependencies = [
   "seaborn",
   "sympy",
   "tqdm",
-  "tensorflow>=2.19,<2.20"
+  "tensorflow>=2.19,<2.20",
+  "pybullet>=3.2.7",
+  "gymnasium[bullet]>=1.2.0",
+  "gymnasium-robotics>=1.4.1",
 ]
 
 [project.optional-dependencies]

@@ -89,18 +89,14 @@ class PGPolicyOptimizer(PolicyOptimizer):
             # Compute advantages: (R - b) exactly like hybrid
             advantages = rewards - baseline_tf
             
-            # Compute log probabilities using the TF2 method with proper sequence lengths
-            probs, log_probs, entropy = self.policy.get_probs_and_entropy(sampled_batch.obs, sampled_batch.actions, sampled_batch.lengths)
-            
-            # Sum log probs over sequence dimension to get neglogp
-            neglogp = -tf.reduce_sum(log_probs, axis=1)  # Negative log prob like hybrid
+            # Use make_neglogp_and_entropy to get neglogp exactly like hybrid
+            neglogp, entropy = self.policy.make_neglogp_and_entropy(sampled_batch, self.entropy_gamma)
             
             # Policy gradient loss: E[(R - b) * neglogp] (exactly like hybrid)
             pg_loss = tf.reduce_mean(advantages * neglogp)
             
-            # Entropy loss (like hybrid): first sum over sequence, then average over batch
-            entropy_per_sequence = tf.reduce_sum(entropy, axis=1)  # Sum over masked sequence
-            entropy_loss = -self.entropy_weight * tf.reduce_mean(entropy_per_sequence)
+            # Entropy loss (like hybrid): entropy is already summed over sequence, just average over batch
+            entropy_loss = -self.entropy_weight * tf.reduce_mean(entropy)
             
             # Total loss (like hybrid: loss = entropy_loss + pg_loss)  
             total_loss = entropy_loss + pg_loss

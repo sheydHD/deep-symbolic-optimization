@@ -244,14 +244,10 @@ class RNNPolicy(tf.keras.Model, Policy):
 
     def make_neglogp_and_entropy(self, B, entropy_gamma):
         """Compute negative log-probabilities and entropy for a batch (required abstract method)."""
-        # Convert batch to tensors
-        obs_tensor, actions_tensor = convert_batch_to_tensors(B, create_batch_spec(B))
+        # Get probabilities, neglogp and entropy with proper sequence lengths AND entropy_gamma decay
+        _, neglogp, entropy = self.get_probs_and_entropy(B.obs, B.actions, B.lengths, entropy_gamma)
         
-        # Get probabilities and entropy with proper sequence lengths
-        _, action_log_probs, entropy = self.get_probs_and_entropy(obs_tensor, actions_tensor, B.lengths)
-        
-        # Return negative log probabilities and entropy
-        neglogp = -action_log_probs
+        # Return negative log probabilities and entropy (already computed correctly)
         return neglogp, entropy
 
     def compute_probs(self, memory_batch, log=False):
@@ -259,8 +255,8 @@ class RNNPolicy(tf.keras.Model, Policy):
         # Convert batch to tensors
         obs_tensor, actions_tensor = convert_batch_to_tensors(memory_batch, create_batch_spec(memory_batch))
         
-        # Get probabilities with proper sequence lengths
-        probs, action_log_probs, _ = self.get_probs_and_entropy(obs_tensor, actions_tensor, memory_batch.lengths)
+        # Get probabilities with proper sequence lengths (no entropy_gamma for memory batch)
+        probs, action_log_probs, _ = self.get_probs_and_entropy(obs_tensor, actions_tensor, memory_batch.lengths, None)
         
         if log:
             return action_log_probs
@@ -268,7 +264,7 @@ class RNNPolicy(tf.keras.Model, Policy):
             # Return action probabilities by exponentiating log probs
             return tf.exp(action_log_probs)
 
-    def get_probs_and_entropy(self, obs, actions, lengths=None):
+    def get_probs_and_entropy(self, obs, actions, lengths=None, entropy_gamma=None):
         """Compute action probabilities and entropy given observations and actions.
         
         Following the original TF1 logic with dynamic_rnn and sequence masking.
@@ -330,29 +326,42 @@ class RNNPolicy(tf.keras.Model, Policy):
         # HYBRID-EXACT LOGIC: Use safe_cross_entropy exactly like hybrid
         # From hybrid: neglogp_per_step = safe_cross_entropy(actions_one_hot, logprobs, axis=2)
         neglogp_per_step = safe_cross_entropy(actions_one_hot, log_probs_truncated, axis=2)  # Sum over action dim
-        action_log_probs = -neglogp_per_step  # Convert to positive log probs
         
-        # Apply mask to log probabilities (exactly like hybrid: neglogp_per_step * mask)
-        action_log_probs = action_log_probs * mask
+        # Apply mask to neglogp per step (exactly like hybrid: neglogp_per_step * mask)
+        masked_neglogp_per_step = neglogp_per_step * mask
+        
+        # Sum over time dimension to get sequence neglogp (exactly like hybrid)
+        action_neglogp = tf.reduce_sum(masked_neglogp_per_step, axis=1)  # [batch_size]
         
         # Compute entropy per step (like hybrid approach)
         entropy_per_step = safe_cross_entropy(probs_truncated, log_probs_truncated, axis=2)  # Sum over action dim
-        entropy_per_step = entropy_per_step * mask  # Apply mask
         
-        # Pad back to original actions sequence length if needed for consistency
+        # Apply entropy_gamma decay (EXACTLY like hybrid)
+        if entropy_gamma is None:
+            entropy_gamma = 1.0
+        # Create entropy decay vector exactly like hybrid
+        entropy_gamma_decay = np.array([entropy_gamma**t for t in range(self.max_length)], dtype=np.float32)
+        # Slice to match current sequence length like hybrid (use min_seq_len to match mask)
+        sliced_entropy_gamma_decay = tf.slice(tf.constant(entropy_gamma_decay), [0], [min_seq_len])
+        # Expand to match batch dimension and multiply with mask (like hybrid)
+        entropy_gamma_decay_mask = tf.expand_dims(sliced_entropy_gamma_decay, 0) * mask
+        
+        # Apply both mask and entropy decay (exactly like hybrid)
+        entropy_per_step = entropy_per_step * entropy_gamma_decay_mask
+        
+        # Pad entropy back to original actions sequence length if needed for consistency
         if min_seq_len < actions_seq_len:
             padding_length = actions_seq_len - min_seq_len
             padding_shape = [batch_size, padding_length]
-            action_log_probs = tf.concat([
-                action_log_probs,
-                tf.zeros(padding_shape, dtype=action_log_probs.dtype)
-            ], axis=1)
             entropy_per_step = tf.concat([
                 entropy_per_step,
                 tf.zeros(padding_shape, dtype=entropy_per_step.dtype)
             ], axis=1)
         
-        return probs, action_log_probs, entropy_per_step
+        # Sum entropy over time (exactly like hybrid)
+        entropy = tf.reduce_sum(entropy_per_step, axis=1)  # [batch_size]
+        
+        return probs, action_neglogp, entropy
 
     def sample(self, n: int):
         """Sample batch of n expressions using TF2.
@@ -673,7 +682,7 @@ class RNNPolicy(tf.keras.Model, Policy):
             actions: Actions tensor [batch_size, seq_len]
             lengths: Optional sequence lengths [batch_size] for masking
         """
-        _, action_log_probs, _ = self.get_probs_and_entropy(obs, actions, lengths)
+        _, action_log_probs, _ = self.get_probs_and_entropy(obs, actions, lengths, None)
         return action_log_probs
 
     def sample_eager_old(self, n):
