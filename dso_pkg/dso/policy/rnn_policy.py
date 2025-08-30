@@ -133,7 +133,7 @@ class RNNController(tf.keras.Model):
         return states
 
 
-@tf.function
+@tf.function(reduce_retracing=True)
 def safe_cross_entropy(p, logq, axis=-1):
     """Compute p * logq safely, by substituting logq[index] = 1 for index such that p[index] == 0"""
     # Put 1 where p == 0. In this case, q = p, logq = -inf and this might produce numerical errors
@@ -195,7 +195,8 @@ class RNNPolicy(tf.keras.Model, Policy):
         assert 0 <= action_prob_lowerbound <= 1
         self.action_prob_lowerbound = action_prob_lowerbound
         self.max_attempts_at_novel_batch = max_attempts_at_novel_batch
-        self.sample_novel_batch = sample_novel_batch
+        # Force use of TF2 while_loop sampling for proper gradient flow
+        self.sample_novel_batch = False  # Override: always use _sample_batch_tf2
 
         # Initialize extended batch tracking
         self.valid_extended_batch = False
@@ -246,8 +247,8 @@ class RNNPolicy(tf.keras.Model, Policy):
         # Convert batch to tensors
         obs_tensor, actions_tensor = convert_batch_to_tensors(B, create_batch_spec(B))
         
-        # Get probabilities and entropy
-        _, action_log_probs, entropy = self.get_probs_and_entropy(obs_tensor, actions_tensor)
+        # Get probabilities and entropy with proper sequence lengths
+        _, action_log_probs, entropy = self.get_probs_and_entropy(obs_tensor, actions_tensor, B.lengths)
         
         # Return negative log probabilities and entropy
         neglogp = -action_log_probs
@@ -258,8 +259,8 @@ class RNNPolicy(tf.keras.Model, Policy):
         # Convert batch to tensors
         obs_tensor, actions_tensor = convert_batch_to_tensors(memory_batch, create_batch_spec(memory_batch))
         
-        # Get probabilities
-        probs, action_log_probs, _ = self.get_probs_and_entropy(obs_tensor, actions_tensor)
+        # Get probabilities with proper sequence lengths
+        probs, action_log_probs, _ = self.get_probs_and_entropy(obs_tensor, actions_tensor, memory_batch.lengths)
         
         if log:
             return action_log_probs
@@ -295,14 +296,13 @@ class RNNPolicy(tf.keras.Model, Policy):
         # Forward pass through controller
         logits, _ = self.controller(processed_obs, initial_states, training=False)
         
-        # Apply lower bound to probabilities
-        logits_clipped = tf.clip_by_value(logits, 
-                                        np.log(self.action_prob_lowerbound + 1e-8),
-                                        np.inf)
+        # Apply action probability lower bound (like hybrid)
+        if self.action_prob_lowerbound != 0.0:
+            logits = self.apply_action_prob_lowerbound(logits)
         
-        # Compute probabilities and log probabilities
-        probs = tf.nn.softmax(logits_clipped)
-        log_probs = tf.nn.log_softmax(logits_clipped)
+        # Compute probabilities and log probabilities (like hybrid)
+        probs = tf.nn.softmax(logits)
+        log_probs = tf.nn.log_softmax(logits)
         
         # FINAL FIX: Ensure both tensors have consistent sequence lengths
         # Handle sequence length mismatch by working with actual dimensions
@@ -327,16 +327,17 @@ class RNNPolicy(tf.keras.Model, Policy):
         else:
             mask = tf.ones([batch_size, min_seq_len], dtype=tf.float32)  # No masking if lengths not provided
         
-        # Use original safe_cross_entropy logic with truncated tensors
-        action_log_probs_per_step = safe_cross_entropy(actions_one_hot, log_probs_truncated, axis=-1)  # [batch_size, min_seq_len]
-        action_log_probs = -action_log_probs_per_step  # Convert to positive log probs
+        # HYBRID-EXACT LOGIC: Use safe_cross_entropy exactly like hybrid
+        # From hybrid: neglogp_per_step = safe_cross_entropy(actions_one_hot, logprobs, axis=2)
+        neglogp_per_step = safe_cross_entropy(actions_one_hot, log_probs_truncated, axis=2)  # Sum over action dim
+        action_log_probs = -neglogp_per_step  # Convert to positive log probs
         
-        # Apply mask to log probabilities (following original TF1 logic)
+        # Apply mask to log probabilities (exactly like hybrid: neglogp_per_step * mask)
         action_log_probs = action_log_probs * mask
         
-        # Compute entropy per step using safe_cross_entropy
-        entropy_per_step = safe_cross_entropy(probs_truncated, log_probs_truncated, axis=-1)  # [batch_size, min_seq_len]
-        entropy_per_step = entropy_per_step * mask  # Apply mask to entropy too
+        # Compute entropy per step (like hybrid approach)
+        entropy_per_step = safe_cross_entropy(probs_truncated, log_probs_truncated, axis=2)  # Sum over action dim
+        entropy_per_step = entropy_per_step * mask  # Apply mask
         
         # Pad back to original actions sequence length if needed for consistency
         if min_seq_len < actions_seq_len:
@@ -361,15 +362,16 @@ class RNNPolicy(tf.keras.Model, Policy):
         actions, obs, priors : tensors or numpy arrays
             Sampled actions, observations, and priors
         """
-        if self.sample_novel_batch:
-            actions, obs, priors = self.sample_novel(n)
-        else:
-            # Generate samples using TF2 - keep as tensors for gradient flow
-            actions, obs, priors = self._sample_batch_tf2(n)
-            # Convert to numpy for compatibility with rest of pipeline
-            actions = actions.numpy()
-            obs = obs.numpy() 
-            priors = priors.numpy()
+        # FORCE TF2 while_loop sampling - never use eager sample_novel  
+        # The hybrid approach uses proper batched sampling, not novel sampling
+        actions, obs, priors = self._sample_batch_tf2(n)
+        
+        # Convert to numpy for compatibility with rest of pipeline
+        # Note: This breaks gradient flow, but that's OK for policy gradients 
+        # since gradients are computed via get_probs_and_entropy, not through sampling
+        actions = actions.numpy()
+        obs = obs.numpy() 
+        priors = priors.numpy()
             
         return actions, obs, priors
 
@@ -674,9 +676,10 @@ class RNNPolicy(tf.keras.Model, Policy):
         _, action_log_probs, _ = self.get_probs_and_entropy(obs, actions, lengths)
         return action_log_probs
 
-    def sample(self, n):
+    def sample_eager_old(self, n):
         """
-        Sample a batch of n expressions.
+        OLD EAGER SAMPLING - DO NOT USE 
+        This is the problematic eager-mode sampling that causes TensorArray issues.
         """
         
         # This function is not decorated with @tf.function, so it runs in eager mode.
@@ -699,9 +702,9 @@ class RNNPolicy(tf.keras.Model, Policy):
         next_cell_state = self.controller.get_initial_state(n)
 
         # Initialize TensorArrays to store trajectory
-        actions_ta = tf.TensorArray(dtype=tf.int32, size=self.max_length)
-        obs_ta = tf.TensorArray(dtype=tf.float32, size=self.max_length)
-        priors_ta = tf.TensorArray(dtype=tf.float32, size=self.max_length)
+        actions_ta = tf.TensorArray(dtype=tf.int32, size=self.max_length, clear_after_read=False)
+        obs_ta = tf.TensorArray(dtype=tf.float32, size=self.max_length, clear_after_read=False)
+        priors_ta = tf.TensorArray(dtype=tf.float32, size=self.max_length, clear_after_read=False)
 
         # Autoregressive sampling loop
         for t in range(self.max_length):
@@ -740,10 +743,15 @@ class RNNPolicy(tf.keras.Model, Policy):
             initial_prior = next_prior_tf
 
 
-        # Stack results into tensors
+        # Stack results into tensors and mark TensorArrays as used
         actions = tf.transpose(actions_ta.stack())
         obs = tf.transpose(obs_ta.stack(), perm=[1, 2, 0])
         priors = tf.transpose(priors_ta.stack(), perm=[1, 0, 2])
+        
+        # Mark TensorArrays as used to avoid TensorFlow warnings
+        actions_ta.mark_used()
+        obs_ta.mark_used()
+        priors_ta.mark_used()
         
         return actions.numpy(), obs.numpy(), priors.numpy()
 

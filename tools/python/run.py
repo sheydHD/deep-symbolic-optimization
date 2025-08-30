@@ -49,7 +49,7 @@ def interactive_menu() -> None:
         elif choice == "2":
             cmd_test(argparse.Namespace(forward=[]))
         elif choice == "3":
-            cfg = input("Path to JSON config: ").strip() or "dso/dso/config/examples/regression/Nguyen-2.json"
+            cfg = input("Path to JSON config: ").strip() or "dso_pkg/dso/config/examples/regression/Nguyen-2.json"
             cmd_bench(argparse.Namespace(config=cfg))
         elif choice == "h":
             print("\nHelp:")

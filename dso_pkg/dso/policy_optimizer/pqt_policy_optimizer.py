@@ -113,7 +113,7 @@ class PQTPolicyOptimizer(PolicyOptimizer):
             # Compute standard policy gradient loss
             r = sampled_batch.rewards
             log_probs = self.policy.compute_log_prob(sampled_batch.obs, sampled_batch.actions)
-            _, _, entropy = self.policy.get_probs_and_entropy(sampled_batch.obs, sampled_batch.actions)
+            _, _, entropy = self.policy.get_probs_and_entropy(sampled_batch.obs, sampled_batch.actions, sampled_batch.lengths)
             
             baseline_val = tf.reduce_mean(r)
             advantages = r - baseline_val
@@ -146,7 +146,9 @@ class PQTPolicyOptimizer(PolicyOptimizer):
                 pqt_loss = 0.0
             
             # Entropy loss (same as original)
-            entropy_loss = -self.entropy_weight * tf.reduce_mean(entropy)
+            # Entropy loss: first sum over sequence, then average over batch  
+            entropy_per_sequence = tf.reduce_sum(entropy, axis=1)  # Sum over masked sequence
+            entropy_loss = -self.entropy_weight * tf.reduce_mean(entropy_per_sequence)
             
             # Total loss (preserve original logic)
             if self.pqt_use_pg:

@@ -84,7 +84,7 @@ class PPOPolicyOptimizer(PolicyOptimizer):
         
         # Compute current log probabilities and entropy
         current_log_probs = self.policy.compute_log_prob(batch.obs, batch.actions)
-        _, _, entropy = self.policy.get_probs_and_entropy(batch.obs, batch.actions)
+        _, _, entropy = self.policy.get_probs_and_entropy(batch.obs, batch.actions, batch.lengths)
         
         # Compute ratio for PPO
         ratio = tf.exp(current_log_probs - old_log_probs)
@@ -99,7 +99,9 @@ class PPOPolicyOptimizer(PolicyOptimizer):
         ppo_loss = -tf.reduce_mean(tf.minimum(surr1, surr2))
         
         # Add entropy regularization
-        entropy_loss = -self.entropy_weight * tf.reduce_mean(entropy)
+        # Entropy loss: first sum over sequence, then average over batch
+        entropy_per_sequence = tf.reduce_sum(entropy, axis=1)  # Sum over masked sequence  
+        entropy_loss = -self.entropy_weight * tf.reduce_mean(entropy_per_sequence)
         
         total_loss = ppo_loss + entropy_loss
         

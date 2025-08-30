@@ -12,8 +12,8 @@ from time import time
 from datetime import datetime
 
 import numpy as np
-# Import TensorFlow with modern TF2 configuration
-import tensorflow as tf
+# Import TensorFlow with optimized configuration
+from dso.tf_config import tf
 import json5 as json
 
 from dso.task import set_task
@@ -51,19 +51,15 @@ class DeepSymbolicOptimizer():
 
     def __init__(self, config=None):
         self.set_config(config)
-        # No session needed in TF2
 
     def setup(self):
 
-        # Clear the cache and setup TensorFlow 2.x
+        # Clear the cache and reset the compute graph
         Program.clear_cache()
-        # No need to reset graph in TF2 eager execution
-
         # Generate objects needed for training and set seeds
         self.pool = self.make_pool_and_set_task()
-        self.set_seeds() # Must be called _after_ setting task
+        self.set_seeds()
 
-        # TF2 doesn't need session configuration - using eager execution
         # Setup logdirs and output files
         self.output_file = self.make_output_file()
         self.save_config()
@@ -212,11 +208,8 @@ class DeepSymbolicOptimizer():
         return trainer
 
     def make_logger(self):
-        if self.output_file is None:
-            # For tests or when no logdir is provided, create a logger that doesn't save to file
-            logger = StatsLogger(output_file=None, **self.config_logger)
-        else:
-            logger = StatsLogger(output_file=self.output_file, **self.config_logger)
+        logger = StatsLogger(self.output_file,
+                             **self.config_logger)
         return logger
 
     def make_checkpoint(self):

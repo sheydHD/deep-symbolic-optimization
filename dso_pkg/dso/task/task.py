@@ -133,6 +133,14 @@ class HierarchicalTask(Task):
         super(Task).__init__()
 
     def get_next_obs(self, actions, obs, already_finished):
+        
+        # Convert TensorFlow tensors to numpy arrays for numba compatibility
+        if hasattr(actions, 'numpy'):
+            actions = actions.numpy()
+        if hasattr(obs, 'numpy'):
+            obs = obs.numpy()
+        if hasattr(already_finished, 'numpy'):
+            already_finished = already_finished.numpy()
 
         dangling = obs[:, 3] # Shape of obs: (?, 4)
         action = actions[:, -1] # Current action
