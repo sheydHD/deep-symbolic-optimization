@@ -5,7 +5,7 @@ sidebar_position: 1
 # 🏠 Deep Symbolic Optimization (DSO)
 
 <p align="center">
-<img src="/img/banner.png" width="750" />
+    <img src="/img/banner.png"/>
 </p>
 
 ## What is DSO?
