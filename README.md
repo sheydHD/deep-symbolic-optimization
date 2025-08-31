@@ -1,7 +1,7 @@
 # Deep Symbolic Optimization
 
 <p align="center">
-<img src="docs/attachments/images/banner.png" width=750/>
+<img src="dso-docs/docs/attachments/images/banner.png" width=750/>
 </p>
 
 Deep Symbolic Optimization (DSO) is a deep learning framework for symbolic optimization tasks. The package `dso` includes the core symbolic optimization algorithms, as well as support for two particular symbolic optimization tasks: (1) _symbolic regression_ (recovering tractable mathematical expressions from an input dataset) and (2) discovering _symbolic policies_ for reinforcement learning environments. In the code, these tasks are referred to as `regression` and `control`, respectively. We also include a simple interface for defining new tasks.
@@ -9,8 +9,8 @@ Deep Symbolic Optimization (DSO) is a deep learning framework for symbolic optim
 On symbolic regression, DSO was benchmarked against the SRBench benchmark set and achieves state-of-the-art in both symbolic solution rate and accuracy solution rate:
 
 <p align="center">
-<img src="docs/attachments/images/srbench_symbolic-solution.png" width=300/>
-<img src="docs/attachments/images/srbench_accuracy-solution.png" width=300/>
+<img src="dso-docs/docs/attachments/images/srbench_symbolic-solution.png" width=300/>
+<img src="dso-docs/docs/attachments/images/srbench_accuracy-solution.png" width=300/>
 </p>
 
 DSO also won [1st place](https://cavalab.org/srbench/competition-2022/#real-world-track-rankings) in the Real-World Track of the 2022 SRBench Symbolic Regression Competition held at the GECCO 2022 conference.
@@ -413,7 +413,7 @@ J_{\text{PPO}} (\theta) =\mathbb{E}_{\tau \sim \mathcal{T}} [ \min (r(\theta) (R
 <details>
 <summary>The map of core dependencies is depicted here.</summary>
 <p align="center">
-<img src="docs/attachments/images/code_map.png" width=750/>
+<img src="dso-docs/docs/attachments/images/code_map.png" width=750/>
 </p>
 </details>
 
