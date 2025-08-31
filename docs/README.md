@@ -41,15 +41,13 @@ Each sub-directory contains its own `README.md` to aid discoverability (except w
 ## Building Docs Locally
 
 ```bash
-uv run mkdocs serve  # Live-reload at http://127.0.0.1:8000/
+cd dso-docs
+pnpm start  # Live-reload at http://localhost:3000/
 ```
 
-If MkDocs isn't installed yet, run:
+If Doccusaurus isn't installed yet, run:
 
 ```bash
-uv pip install mkdocs-material mkdocstrings[python]
+cd dso-docs
+pnpm build docusaurus
 ```
-
----
-
-For contribution guidelines, see the [Rules overview](rules/README.md).

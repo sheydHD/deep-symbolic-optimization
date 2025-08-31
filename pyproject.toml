@@ -39,12 +39,7 @@ extras = [
   "control"
 ]
 dev = [
-  "mkdocs>=1.5",
-  "mkdocs-material[imaging]>=9.2",
-  "mkdocs-awesome-pages-plugin>=2.9",
   "pymdown-extensions>=10",
-  "mkdocstrings[python]>=0.23",
-  "mkdocs-markdownextradata-plugin>=0.2.5",
   "pytest>=8",
   "pytest-cov>=4",
   "black>=23",

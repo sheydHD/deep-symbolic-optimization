@@ -12,8 +12,8 @@
 
 - **Initial Documentation System**
 
-  - Established MkDocs-based documentation hub with core configuration.
-  - Added navigation structure and rules overview page (`docs/rules/README.md`).
+  - Established Docusaurus-based documentation hub with core configuration.
+  - Added navigation structure and rules overview page (`dso-docs`).
 
 - **Cross-Platform Legacy Setup Automation**
 

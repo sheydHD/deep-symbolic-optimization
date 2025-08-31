@@ -29,12 +29,7 @@ control
 # nvidia-cufile-cu12==1.11.1.6 ; platform_system != "Windows"
 
 # Docs
-mkdocs>=1.5
-mkdocs-material[imaging]>=9.2
-mkdocs-awesome-pages-plugin>=2.9
 pymdown-extensions>=10
-mkdocstrings[python]>=0.23
-mkdocs-markdownextradata-plugin>=0.2.5
 
 # Testing
 pytest>=8

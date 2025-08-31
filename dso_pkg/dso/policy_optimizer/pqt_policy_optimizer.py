@@ -83,7 +83,7 @@ class PQTPolicyOptimizer(PolicyOptimizer):
         advantages = tf.cast(advantages, tf.float32)
         log_probs = tf.cast(log_probs, tf.float32)
         
-        if len(tf.shape(log_probs)) > 1:
+        if tf.rank(log_probs) > 1:
             log_probs = tf.reduce_sum(log_probs, axis=1)
             
         loss = -tf.reduce_mean(advantages * log_probs)
@@ -123,7 +123,7 @@ class PQTPolicyOptimizer(PolicyOptimizer):
             log_probs = tf.cast(log_probs, tf.float32)
             
             # Handle tensor shape: sum log_probs across sequence if needed
-            if len(tf.shape(log_probs)) > 1:
+            if tf.rank(log_probs) > 1:
                 log_probs_sum = tf.reduce_sum(log_probs, axis=1)
             else:
                 log_probs_sum = log_probs
@@ -136,7 +136,7 @@ class PQTPolicyOptimizer(PolicyOptimizer):
                 pqt_log_probs = tf.cast(pqt_log_probs, tf.float32)
                 
                 # Handle tensor shape for PQT loss too
-                if len(tf.shape(pqt_log_probs)) > 1:
+                if tf.rank(pqt_log_probs) > 1:
                     pqt_neglogp = -tf.reduce_sum(pqt_log_probs, axis=1)
                 else:
                     pqt_neglogp = -pqt_log_probs
@@ -146,8 +146,11 @@ class PQTPolicyOptimizer(PolicyOptimizer):
                 pqt_loss = 0.0
             
             # Entropy loss (same as original)
-            # Entropy loss: first sum over sequence, then average over batch  
-            entropy_per_sequence = tf.reduce_sum(entropy, axis=1)  # Sum over masked sequence
+            # Entropy loss: entropy is already summed over sequence, just average over batch  
+            if tf.rank(entropy) > 1:
+                entropy_per_sequence = tf.reduce_sum(entropy, axis=1)  # Sum over masked sequence
+            else:
+                entropy_per_sequence = entropy  # Already summed over sequence
             entropy_loss = -self.entropy_weight * tf.reduce_mean(entropy_per_sequence)
             
             # Total loss (preserve original logic)

@@ -49,9 +49,6 @@ htmlcov/
 .idea/
 .vscode/
 
-# MkDocs generated site
-site/
-
 # OS generated files
 Thumbs.db
 .DS_Store
