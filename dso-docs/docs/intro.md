@@ -2,46 +2,103 @@
 sidebar_position: 1
 ---
 
-# Tutorial Intro
+# 🏠 Deep Symbolic Optimization (DSO)
 
-Let's discover **Docusaurus in less than 5 minutes**.
+<p align="center">
+<img src="/img/banner.png" width="750" />
+</p>
 
-## Getting Started
+## What is DSO?
 
-Get started by **creating a new site**.
+**Deep Symbolic Optimization (DSO)** is a powerful framework that combines deep learning with symbolic optimization to discover mathematical expressions from data. Think of it as an AI that can find the hidden mathematical patterns in your data and express them as human-readable formulas.
 
-Or **try Docusaurus immediately** with **[docusaurus.new](https://docusaurus.new)**.
+## What can DSO do?
 
-### What you'll need
+### 🔍 **Symbolic Regression**
 
-- [Node.js](https://nodejs.org/en/download/) version 18.0 or above:
-  - When installing Node.js, you are recommended to check all checkboxes related to dependencies.
+DSO can take your data and find the mathematical formula that best explains it. For example:
 
-## Generate a new site
+- Given data points from a sine wave, it might discover: `y = sin(x)`
+- Given complex relationships, it might find: `y = 2.5 * x^2 + 3.1 * sin(x) + 1.2`
 
-Generate a new Docusaurus site using the **classic template**.
+### 🎮 **Control Systems**
 
-The classic template will automatically be added to your project after you run the command:
+DSO can create interpretable control policies for robots and simulations. Instead of black-box neural networks, you get readable rules like:
+
+- "If the car is going too slow, accelerate by 0.5"
+- "If the pendulum angle > 0.1, apply force = -2.3 \* angle"
+
+### 🏆 **State-of-the-Art Performance**
+
+DSO has achieved remarkable results:
+
+- **1st place** in the 2022 SRBench Symbolic Regression Competition
+- **Best performance** on both symbolic solution rate and accuracy
+- **Published** in top AI conferences (ICLR, ICML, NeurIPS)
+
+## Why use DSO?
+
+### ✅ **Interpretable Results**
+
+Unlike black-box neural networks, DSO gives you mathematical expressions you can understand, analyze, and trust.
+
+### ⚡ **Fast & Efficient**
+
+- GPU-accelerated evaluation
+- Parallel processing support
+- Optimized for both speed and accuracy
+
+### 🔧 **Flexible & Extensible**
+
+- Easy to add new mathematical functions
+- Support for custom datasets and environments
+- Pluggable policy representations (RNN, Transformer)
+
+### 🎯 **Production Ready**
+
+- Comprehensive testing and validation
+- Well-documented APIs
+- Active development and community support
+
+## Quick Start
 
 ```bash
-npm init docusaurus@latest my-website classic
+# 1. Clone and setup
+git clone https://github.com/your-org/dso.git && cd dso
+./main.sh  # Press '1' when prompted
+
+# 2. Activate environment
+source .venv/bin/activate
+
+# 3. Run your first experiment
+python -m dso.run dso/config/config_regression.json --b Nguyen-7
 ```
 
-You can type this command into Command Prompt, Powershell, Terminal, or any other integrated terminal of your code editor.
+## Simple Example
 
-The command also installs all necessary dependencies you need to run Docusaurus.
+```python
+from dso import DeepSymbolicRegressor
+import numpy as np
 
-## Start your site
+# Generate some data
+X = np.random.random((100, 2))
+y = np.sin(X[:,0]) + X[:,1] ** 2
 
-Run the development server:
+# Create and train the model
+model = DeepSymbolicRegressor()
+model.fit(X, y)
 
-```bash
-cd my-website
-npm run start
+# Get the discovered formula
+print(model.program_.pretty())
+# Output might be: "sin(x0) + x1^2"
 ```
 
-The `cd` command changes the directory you're working with. In order to work with your newly created Docusaurus site, you'll need to navigate the terminal there.
+## What's Next?
 
-The `npm run start` command builds your website locally and serves it through a development server, ready for you to view at http://localhost:3000/.
+- **[Getting Started](core/getting_started)** - Learn how to run your first DSO experiment
+- **[Setup Guide](core/setup)** - Detailed installation and configuration instructions
+- **[Core Concepts](core/concept)** - Understand the fundamental ideas behind DSO
 
-Open `docs/intro.md` (this page) and edit some lines: the site **reloads automatically** and displays your changes.
+---
+
+_DSO is developed by researchers at Lawrence Livermore National Laboratory and has been published in top-tier AI conferences including ICLR, ICML, and NeurIPS._

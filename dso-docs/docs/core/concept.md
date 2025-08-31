@@ -25,5 +25,5 @@ Deep Symbolic Optimization (DSO) is a framework for generating compact, human-re
 
 ## Quick Links
 
-- Getting started: [`guides/getting_started.md`](guides/getting_started.md)
-- Configuration guide: [`guides/installation.md`](guides/installation.md)
+- Getting started: [`core/getting_started.md`](core/getting_started.md)
+- Configuration guide: [`core/setup.md`](core/setup.md)
