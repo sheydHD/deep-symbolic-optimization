@@ -17,7 +17,6 @@ dso/dso/cyfunc*.so
 *videos
 *bsub
 dep-repos/
-.*
 !/.gitignore
 !/.cursorignore
 
@@ -57,4 +56,11 @@ site/
 Thumbs.db
 .DS_Store
 
+# cursor ignore file
 .cursorignore
+
+# gemini-cli settings
+.gemini/
+
+# GitHub App credentials
+gha-creds-*.json

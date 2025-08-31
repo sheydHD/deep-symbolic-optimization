@@ -1,0 +1,14 @@
+{
+  "task": {
+    "task_type": "control",
+    "env": "Hopper-v5",
+    "action_spec": [null]
+  },
+  "training": {
+    "n_cores_batch": 16
+  },
+  "controller": {
+    "entropy_weight": 0.01,
+    "entropy_gamma": 0.85
+  }
+}

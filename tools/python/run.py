@@ -14,77 +14,26 @@ from __future__ import annotations
 import argparse, os, subprocess, sys, textwrap
 from pathlib import Path
 
-# --------------------------------------------------------------------------- paths
-THIS_FILE  = Path(__file__).resolve()
-TOOLS_DIR  = THIS_FILE.parent
-PROJECT    = TOOLS_DIR.parents[1]          # deep-symbolic-optimization/
-DSO_PKG    = PROJECT / "dso"
+import sys, pathlib
+BASE_DIR = pathlib.Path(__file__).resolve().parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+from utils.env import PROJECT, python_exe, run
+from utils import setup_env, test_runner, benchmark_runner
 
 # --------------------------------------------------------------------------- helpers
-def run(cmd: list[str], **kw) -> None:
-    """Let subprocess inherit stdout/stderr (live logs)."""
-    print("➜", *cmd, flush=True)
-    subprocess.run(cmd, check=True, **kw)
-
-def python_exe() -> str:
-    """Return path to python executable, preferring .venv."""
-    # On Windows, the executable is in .venv/Scripts/python.exe
-    # On other systems, it's in .venv/bin/python
-    if sys.platform == "win32":
-        venv_py = PROJECT / ".venv" / "Scripts" / "python.exe"
-    else:
-        venv_py = PROJECT / ".venv" / "bin" / "python"
-    return str(venv_py) if venv_py.exists() else sys.executable
+DSO_PKG    = PROJECT / "dso"
 
 # --------------------------------------------------------------------------- sub-commands
 def cmd_setup(ns: argparse.Namespace) -> None:
-    setup_path = TOOLS_DIR / "setup" / "setup.py"
-    # Change to project directory for setup
     os.chdir(PROJECT)
-    current_python = python_exe()
-    run([current_python, str(setup_path)] + ns.forward)
-
-    # If we just created the venv, re-exec this script inside it.
-    # This ensures that subsequent commands use the venv's python.
-    # Note: os.execv is not available on Windows, so we use subprocess.run
-    # and sys.exit to achieve a similar effect.
-    new_python = python_exe()
-    if new_python != current_python:
-        print("🚀 Re-launching in new virtual environment…")
-        try:
-            # On non-Windows, we can replace the current process
-            if sys.platform != "win32":
-                os.execv(new_python, [new_python, *sys.argv])
-            # On Windows, we spawn a new process and exit
-            else:
-                subprocess.run([new_python, *sys.argv], check=True)
-                sys.exit(0) # Exit current script
-        except Exception as e:
-            print(f"Error re-launching script: {e}")
-            sys.exit(1)
+    setup_env.main(ns.forward)
 
 def cmd_test(ns: argparse.Namespace) -> None:
-    target = PROJECT / "dso" / "dso" / "test"
-    # Change to project directory to ensure relative imports work
-    os.chdir(PROJECT)
-    run([python_exe(), "-m", "pytest", str(target), "-q", "-rs"] + ns.forward)
+    test_runner.run_tests(ns.forward)
 
 def cmd_bench(ns: argparse.Namespace) -> None:
-    # Check if config file exists
-    config_path = Path(ns.config)
-    if not config_path.exists():
-        print(f"❌ Config file not found: {ns.config}")
-        print("Available configs:")
-        config_dir = PROJECT / "dso" / "dso" / "config" / "examples"
-        if config_dir.exists():
-            for cfg in config_dir.rglob("*.json"):
-                print(f"  - {cfg.relative_to(PROJECT)}")
-        return
-    
-    # Run the DSO training script with the config
-    os.chdir(PROJECT)
-    # Call dso.run with config path as a positional argument, not with --config flag
-    run([python_exe(), "-m", "dso.run", str(config_path)])
+    benchmark_runner.run_benchmark(ns.config, getattr(ns, "benchmark", None))
 
 def interactive_menu() -> None:
     while True:
@@ -92,16 +41,31 @@ def interactive_menu() -> None:
         print("  1) Setup environment (.venv + uv)")
         print("  2) Run tests")
         print("  3) Run benchmark")
-        print("  4) Quit")
-        choice = input("Choice [1-4]: ").strip()
-        if   choice == "1": cmd_setup(argparse.Namespace(forward=[]))
-        elif choice == "2": cmd_test (argparse.Namespace(forward=[]))
+        print("  h) Help")
+        print("  q) Quit")
+        choice = input("Choice [1-3,h,q]: ").strip().lower()
+        if   choice == "1":
+            cmd_setup(argparse.Namespace(forward=[]))
+        elif choice == "2":
+            cmd_test(argparse.Namespace(forward=[]))
         elif choice == "3":
-            cfg = input("Path to JSON config: ").strip() or \
-                  "dso/dso/config/examples/regression/Nguyen-2.json"
+            cfg = input("Path to JSON config: ").strip() or "dso_pkg/dso/config/examples/regression/Nguyen-2.json"
             cmd_bench(argparse.Namespace(config=cfg))
-        elif choice == "4": return
-        else: print("Invalid.")
+        elif choice == "h":
+            print("\nHelp:")
+            print("  setup      - create / update virtual environment (.venv) and install deps")
+            print("  test [args]- run pytest suite (additional pytest args optional)")
+            print("  bench CFG  - run benchmark with config JSON (use --benchmark if supported)")
+            print("  menu       - interactive menu (this)")
+            print("  quit       - exit menu")
+            print("\nExamples:")
+            print("  ./main.sh setup (--fresh)")
+            print("  ./main.sh test (-k regression)")
+            print("  ./main.sh bench dso/dso/config/examples/regression/Nguyen-2.json")
+        elif choice == "q":
+            return
+        else:
+            print("Invalid.")
 
 # --------------------------------------------------------------------------- CLI parser
 parser = argparse.ArgumentParser(
@@ -112,7 +76,9 @@ sub = parser.add_subparsers(dest="cmd", required=True)
 sub.add_parser("setup")  .set_defaults(func=lambda _ns, *_: None)  # handled in dispatch
 sub.add_parser("test")   .set_defaults(func=lambda _ns, *_: None)  # handled in dispatch
 sub.add_parser("menu")   .set_defaults(func=lambda _ns, *_: interactive_menu())
-sub.add_parser("bench")  .add_argument("config")
+bench_p = sub.add_parser("bench")
+bench_p.add_argument("config", help="Path to benchmark config JSON")
+bench_p.add_argument("--benchmark", help="Optional benchmark selector passed through to dso.run")
 
 # note: `parse_known_args()` lets us collect *unknown* flags and hand them off
 # --------------------------------------------------------------------------- dispatch

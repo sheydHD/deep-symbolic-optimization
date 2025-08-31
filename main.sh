@@ -3,6 +3,8 @@
 
 set -euo pipefail
 
+export CUDA_VISIBLE_DEVICES=-1
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export ROOT_DIR              # child scripts can rely on this
 
@@ -17,5 +19,5 @@ EOF
 
 if [[ ${1:-} =~ ^(-h|--help)$ ]]; then usage; exit 0; fi
 
-# Execute the modern toolchain directly
+# If no args, show interactive menu (Python script already handles this)
 exec python3 "$MODERN" "$@"
