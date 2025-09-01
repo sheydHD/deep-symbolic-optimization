@@ -134,7 +134,9 @@ class BenchmarkDataset:
                     specs['dataset_size'] = list(list(specs.items())[0][1].items())[0][1][2]
         except (ValueError, SyntaxError) as e:
             # Handle malformed strings including 'nan' values
-            print(f"Warning: Could not parse dataset spec '{specs}': {e}")
+            # Debug message for expected 'nan' values in test specs
+            if specs != 'nan':
+                print(f"Warning: Could not parse dataset spec '{specs}': {e}")
             return None
         return specs
 
@@ -180,7 +182,16 @@ class BenchmarkDataset:
 
     def remove_invalid(self, X, y, y_limit=100):
         """Removes nan, infs, and out of range datapoints from a dataset."""
-        valid = np.logical_and(y > -y_limit, y < y_limit)
+        # Handle both scalar and multi-dimensional y
+        if y.ndim == 1:
+            # Scalar case (original logic)
+            valid = np.logical_and(y > -y_limit, y < y_limit)
+        else:
+            # Multi-dimensional case (MIMO)
+            # Check that all outputs are within limits for each sample
+            valid = np.logical_and(y > -y_limit, y < y_limit)
+            valid = np.all(valid, axis=1)  # All outputs must be valid
+        
         y = y[valid]
         X = X[valid]
         assert X.shape[0] == y.shape[0]
@@ -226,19 +237,51 @@ class BenchmarkDataset:
         our protected functions. Otherwise, some expressions may have large
         error even if the functional form is correct due to the training set
         not using protected functions."""
-        # Replace function names
-        s = s.replace("ln(", "log(")
-        s = s.replace("pi", "np.pi")
-        s = s.replace("pow", "np.power")
-        for k in function_map.keys():
-            s = s.replace(k + '(', f"function_map['{k}'].function(")
-        # Replace variable names
-        for i in reversed(range(self.n_input_var)):
-            old = f"x{i+1}"
-            new = f"x[:, {i}]"
-            s = s.replace(old, new)
-        #Return numpy expression
-        return lambda x : eval(s)
+        # Check if this is a MIMO expression (array format)
+        if s.startswith('[') and s.endswith(']'):
+            # Handle MIMO expressions like "[x1*x2, sin(x3), x1+x2*x3]"
+            # Remove brackets and split by comma
+            inner_expr = s[1:-1]  # Remove outer brackets
+            expressions = [expr.strip() for expr in inner_expr.split(',')]
+            
+            def mimo_lambda(x):
+                results = []
+                for expr in expressions:
+                    # Process each expression
+                    processed_expr = expr
+                    # Replace function names first
+                    processed_expr = processed_expr.replace("ln(", "log(")
+                    processed_expr = processed_expr.replace("pi", "np.pi")
+                    processed_expr = processed_expr.replace("pow", "np.power")
+                    for k in function_map.keys():
+                        processed_expr = processed_expr.replace(k + '(', f"function_map['{k}'].function(")
+                    # Replace variable names
+                    for i in reversed(range(self.n_input_var)):
+                        old = f"x{i+1}"
+                        new = f"x[:, {i}]"
+                        processed_expr = processed_expr.replace(old, new)
+                    # Evaluate expression with function_map and x in context
+                    result = eval(processed_expr, {"np": np, "function_map": function_map, "x": x})
+                    results.append(result)
+                # Stack results along the last axis
+                return np.column_stack(results)
+            
+            return mimo_lambda
+        else:
+            # Handle single output expressions (original logic)
+            # Replace function names
+            s = s.replace("ln(", "log(")
+            s = s.replace("pi", "np.pi")
+            s = s.replace("pow", "np.power")
+            for k in function_map.keys():
+                s = s.replace(k + '(', f"function_map['{k}'].function(")
+            # Replace variable names
+            for i in reversed(range(self.n_input_var)):
+                old = f"x{i+1}"
+                new = f"x[:, {i}]"
+                s = s.replace(old, new)
+            #Return numpy expression
+            return lambda x : eval(s, {"np": np, "function_map": function_map, "x": x})
 
     def save(self, logdir='./'):
         """Saves the dataset to a specified location."""
