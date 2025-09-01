@@ -1,0 +1,219 @@
+{
+  "experiment": {
+    "logdir": "./log",
+    "exp_name": null,
+    "seed": 0
+  },
+
+  "task": {
+    "task_type": "modular_regression",
+    
+    "dataset": null,
+    
+    "function_set": ["add", "sub", "mul", "div", "sin", "cos", "exp", "log"],
+    
+    "metric": "inv_nrmse",
+    "metric_params": [1.0],
+    
+    "extra_metric_test": null,
+    "extra_metric_test_params": [],
+    
+    "threshold": 1e-12,
+    
+    "protected": false,
+    
+    "reward_noise": 0.0,
+    "reward_noise_type": "r",
+    "normalize_variance": false,
+    
+    "decision_tree_threshold_set": [],
+    
+    "const_optimizer": "scipy",
+    "const_params": null,
+    
+    "poly_optimizer_params": {
+      "degree": 3,
+      "coef_tol": 1e-6,
+      "regressor": "dso_least_squares"
+    }
+  },
+
+  "training": {
+    "n_samples": 300000,
+    "batch_size": 1000,
+    "epsilon": 0.05,
+    "baseline": "R_e",
+    "b_jumpstart": false,
+    "early_stopping": true,
+    "verbose": true,
+    "debug": 0,
+    "use_memory": false,
+    "memory_capacity": 1000,
+    "warm_start": null,
+    "memory_threshold": null,
+    "n_cores_batch": 1
+  },
+
+  "policy": {
+    "policy_type": "modular_rnn",
+    
+    "cell": "lstm",
+    "num_layers": 1,
+    "num_units": 32,
+    "initializer": "truncated_normal",
+    "embedding": false,
+    "embedding_size": 8,
+    "encoder": null,
+    "encoder_input_dim": 32,
+    "encoder_hidden_dim": 32,
+    "encoder_num_layers": 1,
+    "entropy_weight": 0.03,
+    "entropy_gamma": 0.7,
+    
+    "multi_output_strategy": "auto",
+    "output_sharing_ratio": 0.3,
+    "max_programs_per_output": 1,
+    
+    "variant_specific_config": {
+      "scalar": {
+        "complexity_penalty": 0.01,
+        "preferred_strategy": "replicate"
+      },
+      "vector_input": {
+        "complexity_penalty": 0.005,
+        "preferred_strategy": "replicate"
+      },
+      "vector_output": {
+        "complexity_penalty_multiplier": 1.0,
+        "preferred_strategy": "independent"
+      },
+      "vector_both": {
+        "complexity_penalty_multiplier": 0.5,
+        "preferred_strategy": "independent"
+      },
+      "tensor": {
+        "complexity_penalty_multiplier": 0.2,
+        "preferred_strategy": "independent",
+        "enable_tensor_functions": true
+      }
+    }
+  },
+
+  "policy_optimizer": {
+    "policy_optimizer_type": "pg",
+    "learning_rate": 0.0005,
+    "entropy_weight": 0.03,
+    "entropy_gamma": 0.7,
+    
+    "ppo_clip_ratio": 0.2,
+    "ppo_n_iters": 10,
+    "ppo_n_mb": 4,
+    
+    "pqt_k": 10,
+    "pqt_batch_size": 1,
+    "pqt_weight": 200.0,
+    "pqt_use_pg": false
+  },
+
+  "gp_meld": {
+    "run_gp_meld": false,
+    "population_size": 100,
+    "generations": 10,
+    "crossover_operator": "cxOnePoint",
+    "p_crossover": 0.5,
+    "mutation_operator": "multi_mutate",
+    "p_mutate": 0.5,
+    "tournament_size": 5,
+    "train_n": 50,
+    "mutate_tree_max": 3,
+    "verbose": false,
+    "parallel_eval": false
+  },
+
+  "prior": {
+    "length": {
+      "min_": 4,
+      "max_": 64,
+      "on": true
+    },
+    "repeat": {
+      "tokens": "const",
+      "min_": null,
+      "max_": 3,
+      "on": true
+    },
+    "inverse": {
+      "on": true
+    },
+    "trig": {
+      "on": true
+    },
+    "const": {
+      "on": true
+    },
+    "no_inputs": {
+      "on": true
+    },
+    "uniform_arity": {
+      "on": true
+    },
+    "soft_length": {
+      "loc": 10,
+      "scale": 5,
+      "on": true
+    },
+    "domain_range": {
+      "on": false
+    }
+  },
+
+  "logging": {
+    "save_summary": true,
+    "save_all_epoch": false,
+    "save_token_count": false,
+    "save_positional_entropy": false,
+    "save_top_samples_per_batch": 0,
+    "save_cache": false,
+    "save_cache_r_min": 0.9,
+    "save_freq": 1,
+    "hof": 100,
+    "save_pareto_front": true
+  },
+
+  "postprocess": {
+    "show_count": 50,
+    "save_plots": true
+  },
+
+  "modular_config": {
+    "auto_detect_variant": true,
+    "auto_configure_strategy": true,
+    "auto_adjust_complexity": true,
+    "enable_backward_compatibility": true,
+    
+    "tensor_config": {
+      "max_tensor_dim": 4,
+      "enable_matrix_functions": true,
+      "tensor_function_set": ["matmul", "transpose", "reshape", "flatten"]
+    },
+    
+    "multi_output_config": {
+      "max_outputs": 10,
+      "output_aggregation": "mean",
+      "independent_evaluation": true,
+      "shared_component_ratio": 0.3
+    },
+    
+    "performance_config": {
+      "cache_programs": true,
+      "parallel_evaluation": true,
+      "memory_optimization": true
+    },
+    
+    "validation_config": {
+      "validate_shapes": true,
+      "handle_invalid_programs": true,
+      "fallback_strategies": true
+    }
+  }
+}
