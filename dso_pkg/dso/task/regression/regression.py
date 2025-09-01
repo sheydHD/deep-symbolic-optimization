@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import os
 
 from dso.task import HierarchicalTask
 from dso.library import Library, Polynomial
@@ -107,9 +108,40 @@ class RegressionTask(HierarchicalTask):
 
         # Case 3: Dataset filename
         elif isinstance(dataset, str) and dataset.endswith("csv"):
-            df = pd.read_csv(dataset, header=None) # Assuming data file does not have header rows
-            self.X_train = df.values[:, :-1]
-            self.y_train = df.values[:, -1]
+            # Check if file exists first
+            if not os.path.exists(dataset):
+                raise FileNotFoundError(f"Dataset file not found: {dataset}")
+                
+            # Try to read with headers first, fallback to no headers
+            try:
+                df = pd.read_csv(dataset)
+                # Check if we have column names that suggest input/output structure
+                if any(col.startswith(('x', 'X')) for col in df.columns) and any(col.startswith(('y', 'Y')) for col in df.columns):
+                    # Auto-detect input/output columns
+                    input_cols = [col for col in df.columns if col.startswith(('x', 'X'))]
+                    output_cols = [col for col in df.columns if col.startswith(('y', 'Y'))]
+                    X_data = df[input_cols].values.astype(np.float64)
+                    y_data = df[output_cols].values.astype(np.float64)
+                    # If multiple outputs, keep as 2D; if single output, flatten
+                    if y_data.shape[1] == 1:
+                        y_data = y_data.flatten()
+                else:
+                    # No clear input/output structure, assume last column is output
+                    df = df.apply(pd.to_numeric, errors='coerce')
+                    X_data = df.values[:, :-1].astype(np.float64)
+                    y_data = df.values[:, -1].astype(np.float64)
+            except Exception as e:
+                # Fallback to original behavior (no headers)
+                try:
+                    df = pd.read_csv(dataset, header=None)
+                    df = df.apply(pd.to_numeric, errors='coerce')
+                    X_data = df.values[:, :-1].astype(np.float64)
+                    y_data = df.values[:, -1].astype(np.float64)
+                except Exception as e2:
+                    raise ValueError(f"Failed to load CSV dataset '{dataset}': {e2}")
+            
+            self.X_train = X_data
+            self.y_train = y_data
             self.name = dataset.replace("/", "_")[:-4]
 
         # Case 4: sklearn-like (X, y) data
@@ -200,6 +232,24 @@ class RegressionTask(HierarchicalTask):
         if p.invalid:
             return -1.0 if optimizing else self.invalid_reward
 
+        # Handle MIMO data: if y_train is multi-dimensional but y_hat is scalar,
+        # we need to handle this properly for MIMO learning
+        if self.y_train.ndim > 1 and y_hat.ndim == 1:
+            # For MIMO data, compute the reward for each output dimension
+            # and use the maximum reward (best match across all outputs)
+            # This encourages finding programs that match at least one output well
+            rewards = []
+            for i in range(self.y_train.shape[1]):
+                y_train_i = self.y_train[:, i]
+                if optimizing:
+                    reward_i = self.const_opt_metric(y_train_i, y_hat)
+                else:
+                    reward_i = self.metric(y_train_i, y_hat)
+                rewards.append(reward_i)
+            
+            # Use the maximum reward to encourage learning any of the target functions
+            return max(rewards)
+
         # Observation noise
         # For reward_noise_type == "y_hat", success must always be checked to
         # ensure success cases aren't overlooked due to noise. If successful,
@@ -239,11 +289,28 @@ class RegressionTask(HierarchicalTask):
             success = False
 
         else:
-            # NMSE on test data (used to report final error)
-            nmse_test = np.mean((self.y_test - y_hat) ** 2) / self.var_y_test
+            # Handle MIMO data in evaluation
+            if self.y_test.ndim > 1 and y_hat.ndim == 1:
+                # For MIMO data, compute NMSE for each output dimension and average
+                nmse_test = 0
+                nmse_test_noiseless = 0
+                for i in range(self.y_test.shape[1]):
+                    y_test_i = self.y_test[:, i]
+                    y_test_noiseless_i = self.y_test_noiseless[:, i]
+                    var_y_test_i = np.var(y_test_i)
+                    var_y_test_noiseless_i = np.var(y_test_noiseless_i)
+                    
+                    nmse_test += np.mean((y_test_i - y_hat) ** 2) / var_y_test_i
+                    nmse_test_noiseless += np.mean((y_test_noiseless_i - y_hat) ** 2) / var_y_test_noiseless_i
+                
+                nmse_test /= self.y_test.shape[1]
+                nmse_test_noiseless /= self.y_test.shape[1]
+            else:
+                # NMSE on test data (used to report final error)
+                nmse_test = np.mean((self.y_test - y_hat) ** 2) / self.var_y_test
 
-            # NMSE on noiseless test data (used to determine recovery)
-            nmse_test_noiseless = np.mean((self.y_test_noiseless - y_hat) ** 2) / self.var_y_test_noiseless
+                # NMSE on noiseless test data (used to determine recovery)
+                nmse_test_noiseless = np.mean((self.y_test_noiseless - y_hat) ** 2) / self.var_y_test_noiseless
 
             # Success is defined by NMSE on noiseless test data below a threshold
             success = nmse_test_noiseless < self.threshold

@@ -93,7 +93,9 @@ class StatsLogger():
         Opens and prepares all output log files controlled by this class.
         """
         if self.output_file is not None:
-            os.makedirs(os.path.dirname(self.output_file), exist_ok=True)
+            output_dir = os.path.dirname(self.output_file)
+            if output_dir:  # Only create directory if there's a directory path
+                os.makedirs(output_dir, exist_ok=True)
             prefix, _ = os.path.splitext(self.output_file)
             self.all_r_output_file = f"{prefix}_all_r.npy"
             self.all_info_output_file = f"{prefix}_all_info.csv"
