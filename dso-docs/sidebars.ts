@@ -17,11 +17,29 @@ const sidebars: SidebarsConfig = {
     'intro',
     {
       type: 'category',
-      label: 'Core',
+      label: 'Getting Started',
       items: [
-        'core/concept',
         'core/getting_started',
         'core/setup',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Core Concepts',
+      items: [
+        'core/concept',
+        'core/architecture',
+        'core/tokens',
+        'core/training',
+        'core/constraints',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Advanced Topics',
+      items: [
+        'core/mimo',
+        'core/advanced',
       ],
     },
     {
@@ -37,15 +55,6 @@ const sidebars: SidebarsConfig = {
         'rules/project_structure',
         'rules/security_rules',
         'rules/testing_rules',
-      ],
-    },
-    {
-      type: 'category',
-      label: 'Structure',
-      items: [
-        'structure/dso_structure',
-        'structure/menu_structure',
-        'structure/test_structure',
       ],
     },
   ],

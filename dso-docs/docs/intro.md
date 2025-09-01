@@ -2,103 +2,181 @@
 sidebar_position: 1
 ---
 
-# 🏠 Deep Symbolic Optimization (DSO)
+# Deep Symbolic Optimization (DSO)
 
 <p align="center">
-    <img src="/img/banner.png"/>
+    <img src="/img/banner.png" alt="DSO Banner"/>
 </p>
 
-## What is DSO?
+## Overview
 
-**Deep Symbolic Optimization (DSO)** is a powerful framework that combines deep learning with symbolic optimization to discover mathematical expressions from data. Think of it as an AI that can find the hidden mathematical patterns in your data and express them as human-readable formulas.
+**Deep Symbolic Optimization (DSO)** is a state-of-the-art framework that combines deep reinforcement learning with symbolic regression to automatically discover interpretable mathematical expressions from data. Unlike traditional machine learning approaches that produce black-box models, DSO generates human-readable mathematical formulas that scientists and engineers can understand, verify, and apply.
 
-## What can DSO do?
+## Key Features
 
-### 🔍 **Symbolic Regression**
+### 🧠 **AI-Driven Discovery**
+DSO uses neural networks to intelligently search the space of mathematical expressions, learning to generate formulas that best fit your data.
 
-DSO can take your data and find the mathematical formula that best explains it. For example:
+### 📊 **Interpretable Results**
+Get explicit mathematical equations instead of black-box models - perfect for scientific research and engineering applications.
 
-- Given data points from a sine wave, it might discover: `y = sin(x)`
-- Given complex relationships, it might find: `y = 2.5 * x^2 + 3.1 * sin(x) + 1.2`
-
-### 🎮 **Control Systems**
-
-DSO can create interpretable control policies for robots and simulations. Instead of black-box neural networks, you get readable rules like:
-
-- "If the car is going too slow, accelerate by 0.5"
-- "If the pendulum angle > 0.1, apply force = -2.3 \* angle"
-
-### 🏆 **State-of-the-Art Performance**
-
-DSO has achieved remarkable results:
-
+### 🏆 **Proven Performance**
 - **1st place** in the 2022 SRBench Symbolic Regression Competition
-- **Best performance** on both symbolic solution rate and accuracy
-- **Published** in top AI conferences (ICLR, ICML, NeurIPS)
+- Published in top AI conferences (ICLR, ICML, NeurIPS)
+- State-of-the-art accuracy on benchmark datasets
 
-## Why use DSO?
-
-### ✅ **Interpretable Results**
-
-Unlike black-box neural networks, DSO gives you mathematical expressions you can understand, analyze, and trust.
-
-### ⚡ **Fast & Efficient**
-
-- GPU-accelerated evaluation
+### ⚡ **Production Ready**
+- GPU acceleration for fast training
 - Parallel processing support
-- Optimized for both speed and accuracy
-
-### 🔧 **Flexible & Extensible**
-
-- Easy to add new mathematical functions
-- Support for custom datasets and environments
-- Pluggable policy representations (RNN, Transformer)
-
-### 🎯 **Production Ready**
-
 - Comprehensive testing and validation
 - Well-documented APIs
-- Active development and community support
+
+## How DSO Works
+
+DSO employs a sophisticated four-step process to discover mathematical expressions:
+
+### 1. **Expression Generation**
+A neural network (RNN policy) generates candidate mathematical expressions as sequences of tokens (operators, variables, constants).
+
+### 2. **Expression Evaluation** 
+Each generated expression is executed on your training data to compute a fitness score based on accuracy and complexity.
+
+### 3. **Reinforcement Learning**
+The neural network learns from the fitness scores using the REINFORCE algorithm, gradually improving its ability to generate better expressions.
+
+### 4. **Iterative Refinement**
+This process repeats for thousands of iterations until optimal mathematical formulas are discovered.
+
+## Applications
+
+### 🔍 **Symbolic Regression**
+Discover the underlying mathematical relationships in your data:
+- **Physics**: Find governing equations from experimental data
+- **Engineering**: Derive design equations from simulation results  
+- **Finance**: Identify market relationships and trading formulas
+
+**Example**: Given data points from a pendulum, DSO might discover: `ω = √(g/L)`
+
+### 🎮 **Control Systems**
+Create interpretable control policies for autonomous systems:
+- **Robotics**: Generate readable control laws instead of black-box neural networks
+- **Aerospace**: Develop flight control algorithms with mathematical guarantees
+- **Manufacturing**: Design process control equations for industrial systems
+
+**Example**: For a robotic arm, DSO might find: `τ = Kₚ(θ_target - θ) + Kᵈ(ω_target - ω)`
+
+### 🧪 **Scientific Discovery**
+Accelerate research by automatically finding mathematical laws:
+- **Chemistry**: Discover reaction rate equations from experimental data
+- **Biology**: Find population dynamics equations from observation data
+- **Materials Science**: Derive property-structure relationships
+
+## Why Choose DSO?
+
+### ✅ **Transparency & Trust**
+Unlike black-box models, DSO provides mathematical expressions that can be:
+- **Verified** by domain experts
+- **Analyzed** for physical consistency  
+- **Validated** against known laws
+- **Interpreted** with confidence
+
+### ⚡ **High Performance**
+- **GPU acceleration** for fast training and evaluation
+- **Parallel processing** for handling large datasets
+- **Optimized algorithms** for efficient expression search
+- **Scalable architecture** for complex problems
+
+### 🔧 **Flexibility & Extensibility**
+- **Custom operators**: Add domain-specific mathematical functions
+- **Configurable constraints**: Incorporate prior knowledge and physical laws
+- **Multiple architectures**: RNN, Transformer, and custom policy networks
+- **Extensible framework**: Easy integration with existing workflows
+
+### 🎯 **Research-Grade Quality**
+- **Rigorous testing**: Comprehensive test suite ensuring reliability
+- **Peer-reviewed**: Published methods in top-tier venues
+- **Active development**: Continuous improvements and new features
+- **Community support**: Growing ecosystem of users and contributors
 
 ## Quick Start
+
+Get started with DSO in just three commands:
 
 ```bash
 # 1. Clone and setup
 git clone https://github.com/your-org/dso.git && cd dso
 ./main.sh  # Press '1' when prompted
 
-# 2. Activate environment
+# 2. Activate environment  
 source .venv/bin/activate
 
 # 3. Run your first experiment
 python -m dso.run dso/config/config_regression.json --b Nguyen-7
+
+or use 
+
+./main.sh  # Press '3' when prompted
 ```
 
 ## Simple Example
+
+Here's how to use DSO to discover a mathematical formula:
 
 ```python
 from dso import DeepSymbolicRegressor
 import numpy as np
 
-# Generate some data
+# Generate training data from a known function
 X = np.random.random((100, 2))
-y = np.sin(X[:,0]) + X[:,1] ** 2
+y = np.sin(X[:,0]) + X[:,1] ** 2  # True formula: sin(x₀) + x₁²
 
-# Create and train the model
-model = DeepSymbolicRegressor()
+# Train DSO to discover the formula
+model = DeepSymbolicRegressor(
+    function_set=["add", "mul", "sin", "pow"],
+    max_complexity=20
+)
 model.fit(X, y)
 
-# Get the discovered formula
-print(model.program_.pretty())
-# Output might be: "sin(x0) + x1^2"
+# View the discovered expression
+print("Discovered formula:", model.program_.pretty())
+# Output: "sin(x0) + x1^2"
+
+# Use for prediction
+y_pred = model.predict(X_test)
 ```
 
-## What's Next?
+## Documentation Structure
 
-- **[Getting Started](core/getting_started)** - Learn how to run your first DSO experiment
-- **[Setup Guide](core/setup)** - Detailed installation and configuration instructions
-- **[Core Concepts](core/concept)** - Understand the fundamental ideas behind DSO
+This documentation is organized into four main sections:
+
+### 📚 **Getting Started**
+- **[Quick Start Guide](core/getting_started)** - Run your first DSO experiment
+- **[Installation & Setup](core/setup)** - Detailed setup instructions and troubleshooting
+
+### 🧠 **Core Concepts** 
+- **[Fundamental Concepts](core/concept)** - Understanding symbolic regression and reinforcement learning
+- **[System Architecture](core/architecture)** - How DSO components work together
+- **[Token System](core/tokens)** - Mathematical building blocks and operators
+- **[Training Process](core/training)** - Neural network training and optimization
+- **[Constraints & Priors](core/constraints)** - Incorporating domain knowledge
+
+### 🚀 **Advanced Topics**
+- **[MIMO Extensions](core/mimo)** - Multiple output regression capabilities  
+- **[Advanced Features](core/advanced)** - Multi-task learning, custom operators, and ensemble methods
+
+### 📋 **Development Guidelines**
+- **Rules** - Coding standards, git workflow, and contribution guidelines
+- **Structure** - Project organization and testing protocols
+
+## Next Steps
+
+Ready to get started? We recommend following this learning path:
+
+1. **Begin with** [Getting Started](core/getting_started) to run your first experiment
+2. **Understand** [Core Concepts](core/concept) to grasp the fundamentals  
+3. **Explore** [System Architecture](core/architecture) for deeper technical understanding
+4. **Experiment** with [Advanced Features](core/advanced) for specialized applications
 
 ---
 
-_DSO is developed by researchers at Lawrence Livermore National Laboratory and has been published in top-tier AI conferences including ICLR, ICML, and NeurIPS._
+*DSO is developed by researchers at Lawrence Livermore National Laboratory and has been published in top-tier AI conferences including ICLR, ICML, and NeurIPS.*

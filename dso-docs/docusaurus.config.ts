@@ -6,7 +6,7 @@ import type * as Preset from "@docusaurus/preset-classic";
 
 const config: Config = {
   title: "Deep Symbolic Optimization",
-  tagline: "Discovering mathematical expressions from data",
+  tagline: "AI-powered discovery of interpretable mathematical expressions",
   favicon: "img/favicon.ico",
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
