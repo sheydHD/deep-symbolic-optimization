@@ -39,6 +39,7 @@ const sidebars: SidebarsConfig = {
       label: 'Advanced Topics',
       items: [
         'core/mimo',
+        'core/mimo_implementation',
         'core/advanced',
       ],
     },

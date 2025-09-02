@@ -1,32 +1,55 @@
-# MIMO Extension: Multiple Output Regression
+# MIMO Theory: Multiple Output Regression
 
-> Version: 1.0 • Last updated: 2025-09-01
+> Version: 2.0 • Last updated: 2025-09-02 • **For Implementation Details**: See [MIMO Implementation Guide](./mimo_implementation.md)
 
-This guide explains the proposed extension of DSO from MISO (Multiple Input Single Output) to MIMO (Multiple Input Multiple Output) for regression tasks.
+This guide explains the theoretical foundations and design concepts for MIMO (Multiple Input Multiple Output) symbolic regression in DSO.
 
-## 🎯 **MIMO Overview**
+## 🎯 **MIMO Motivation**
 
-### **Current MISO Limitation**
-DSO currently discovers single mathematical expressions:
+### **Limitations of Traditional Approaches**
+
+Current DSO discovers single mathematical expressions:
+
+```mermaid
+graph LR
+    A[Input: X] --> B[Single Expression: f] --> C[Output: y]
+    
+    style A fill:#e1f5fe
+    style B fill:#fff3e0
+    style C fill:#c8e6c9
 ```
-Input: X [n_samples, n_features] → Expression: f(x) → Output: y [n_samples]
+
+```
 Example: [x1, x2, x3] → sin(x1) + x2*x3 → scalar output
 ```
 
-### **MIMO Goal**
-Extend DSO to discover multiple related expressions simultaneously:
-```
-Input: X [n_samples, n_features] → Multiple Expressions → Output: Y [n_samples, n_outputs]
+### **MIMO Advantage**
 
-Example: 
-[x1, x2, x3] → {
+MIMO extends DSO to discover multiple related expressions simultaneously:
+
+```mermaid
+graph LR
+    A[Input: X] --> B[Multiple Expressions]
+    B --> C[y1 = f1(X)]
+    B --> D[y2 = f2(X)]
+    B --> E[y3 = f3(X)]
+    
+    style A fill:#e1f5fe
+    style B fill:#fff3e0
+    style C fill:#c8e6c9
+    style D fill:#c8e6c9
+    style E fill:#c8e6c9
+```
+
+```
+Example: [x1, x2, x3] → {
     y1 = sin(x1) + x2,
     y2 = x1² + cos(x3), 
     y3 = exp(x2) * x1
-} → [y1, y2, y3]
+}
 ```
 
-## 🏗️ **MIMO Architecture Design**
+## 🏗️ **MIMO Architecture Strategies**
 
 ### **Option A: Independent Expressions (Recommended)**
 

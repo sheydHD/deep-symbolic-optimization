@@ -17,7 +17,10 @@ sidebar_position: 1
 ### 🧠 **AI-Driven Discovery**
 DSO uses neural networks to intelligently search the space of mathematical expressions, learning to generate formulas that best fit your data.
 
-### 📊 **Interpretable Results**
+### 📊 **Multi-Output Support** 
+Complete support for MIMO (Multiple Input Multiple Output) regression with automatic data variant detection for SISO, MISO, SIMO, and MIMO problems.
+
+### 🔍 **Interpretable Results**
 Get explicit mathematical equations instead of black-box models - perfect for scientific research and engineering applications.
 
 ### 🏆 **Proven Performance**
@@ -33,7 +36,22 @@ Get explicit mathematical equations instead of black-box models - perfect for sc
 
 ## How DSO Works
 
-DSO employs a sophisticated four-step process to discover mathematical expressions:
+DSO employs a sophisticated reinforcement learning process to discover mathematical expressions:
+
+```mermaid
+graph TD
+    A[Input Data] --> B[RNN Policy Network]
+    B --> C[Generate Expression Candidates]
+    C --> D[Execute & Evaluate Programs]
+    D --> E[Compute Rewards]
+    E --> F[Update Policy via REINFORCE]
+    F --> B
+    D --> G[Best Expression Found]
+    
+    style A fill:#e1f5fe
+    style G fill:#c8e6c9
+    style B fill:#fff3e0
+```
 
 ### 1. **Expression Generation**
 A neural network (RNN policy) generates candidate mathematical expressions as sequences of tokens (operators, variables, constants).
@@ -46,6 +64,28 @@ The neural network learns from the fitness scores using the REINFORCE algorithm,
 
 ### 4. **Iterative Refinement**
 This process repeats for thousands of iterations until optimal mathematical formulas are discovered.
+
+## Data Variant Support
+
+DSO now supports multiple data variants with automatic detection:
+
+```mermaid
+graph LR
+    A[Input Data] --> B{Auto-Detect Variant}
+    B --> C[SISO: Single Input/Output]
+    B --> D[MISO: Multi Input/Single Output]
+    B --> E[SIMO: Single Input/Multi Output]
+    B --> F[MIMO: Multi Input/Multi Output]
+    
+    C --> G[Standard DSO]
+    D --> G
+    E --> H[Multi-Output DSO]
+    F --> H
+    
+    style A fill:#e1f5fe
+    style G fill:#c8e6c9
+    style H fill:#f8bbd9
+```
 
 ## Applications
 

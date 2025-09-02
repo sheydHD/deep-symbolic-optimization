@@ -10,12 +10,53 @@ Deep Symbolic Optimization (DSO) is a cutting-edge framework that automatically 
 
 ### Traditional vs. Symbolic Regression
 
+```mermaid
+graph TD
+    A[Regression Approaches] --> B[Traditional Regression]
+    A --> C[Symbolic Regression]
+    
+    B --> D[Fixed Form: y = ax + b]
+    B --> E[Fit Coefficients Only]
+    B --> F[Limited Expressiveness]
+    
+    C --> G[Discover Form: y = ?]
+    C --> H[Find Structure + Coefficients]
+    C --> I[Unlimited Mathematical Creativity]
+    
+    style A fill:#e1f5fe
+    style B fill:#fff3e0
+    style C fill:#c8e6c9
+```
+
 | Traditional Regression | Symbolic Regression |
 |----------------------|-------------------|
 | `y = ax + b` (fixed form) | `y = ?` (discover form) |
 | Fit coefficients | Discover structure + coefficients |
 | Limited expressiveness | Unlimited mathematical creativity |
 | Black-box prediction | Interpretable equations |
+
+## Data Variant Support
+
+DSO supports multiple data structures with automatic detection:
+
+```mermaid
+graph TD
+    A[Data Variants] --> B[SISO: Single Input/Single Output]
+    A --> C[MISO: Multiple Input/Single Output] 
+    A --> D[SIMO: Single Input/Multiple Output]
+    A --> E[MIMO: Multiple Input/Multiple Output]
+    
+    B --> F["f: R → R<br/>Example: x → x²"]
+    C --> G["f: R^n → R<br/>Example: [x,y,z] → sin(x) + y*z"]
+    D --> H["f: R → R^m<br/>Example: x → [x², sin(x), cos(x)]"]
+    E --> I["f: R^n → R^m<br/>Example: [x,y] → [x+y, x*y]"]
+    
+    style A fill:#e1f5fe
+    style F fill:#c8e6c9
+    style G fill:#c8e6c9
+    style H fill:#f8bbd9
+    style I fill:#f8bbd9
+```
 
 ### Examples of Symbolic Regression
 

@@ -8,8 +8,46 @@ This document explains the fundamental architecture and concepts of the Deep Sym
 
 DSO consists of four main components that work together to discover mathematical expressions:
 
+```mermaid
+graph TD
+    A[Configuration] --> B[Task Definition]
+    B --> C[Function Library]
+    C --> D[RNN Policy]
+    D --> E[Program Generation]
+    E --> F[Program Execution]
+    F --> G[Reward Calculation]
+    G --> H[Policy Update]
+    H --> D
+    
+    F --> I[Best Programs]
+    I --> J[Mathematical Expressions]
+    
+    style A fill:#e1f5fe
+    style D fill:#fff3e0
+    style I fill:#c8e6c9
+    style J fill:#c8e6c9
 ```
-Config → Task → Library → Policy → Programs → Evaluation → Rewards → Training
+
+### **Component Interactions**
+
+```mermaid
+graph LR
+    A[DeepSymbolicOptimizer] --> B[RegressionTask]
+    A --> C[RNNPolicy] 
+    A --> D[Library]
+    
+    C --> E[Program Generation]
+    B --> F[Program Evaluation]
+    D --> G[Token Vocabulary]
+    
+    E --> H[Mathematical Expressions]
+    F --> I[Fitness Scores]
+    G --> J[Building Blocks]
+    
+    style A fill:#e1f5fe
+    style H fill:#c8e6c9
+    style I fill:#f8bbd9
+    style J fill:#fff3e0
 ```
 
 ### **Main Components**

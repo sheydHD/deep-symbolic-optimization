@@ -8,6 +8,23 @@ This guide explains how DSO trains neural policies to discover mathematical expr
 
 DSO uses reinforcement learning to train a neural network policy that learns to generate high-quality mathematical expressions.
 
+```mermaid
+graph TD
+    A[Initialize RNN Policy] --> B[Generate Expression Batch]
+    B --> C[Execute Programs on Data]
+    C --> D[Compute Rewards]
+    D --> E[Calculate Policy Gradients]
+    E --> F[Update Policy Parameters]
+    F --> G{Converged?}
+    G -->|No| B
+    G -->|Yes| H[Return Best Expression]
+    
+    style A fill:#e1f5fe
+    style H fill:#c8e6c9
+    style B fill:#fff3e0
+    style D fill:#f8bbd9
+```
+
 ### **Training Philosophy**
 - **No Supervision**: No target expressions provided
 - **Reward-Based Learning**: Policy learns from expression performance
