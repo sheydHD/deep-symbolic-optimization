@@ -113,6 +113,10 @@ class UnifiedDSO:
         
         # Set the task for the Program class (required for global access)
         from dso.program import Program
+        # First set the execute method (protected or not)
+        protected = self.config.get('task', {}).get('protected', False)
+        Program.set_execute(protected)
+        # Then set the task
         Program.set_task(self.task)
         
         # Step 2: Create modular library
@@ -371,26 +375,32 @@ class UnifiedDSO:
         self.trainer.task = self.task
         
         # Run training loop
-        results = []
         n_iters = self.config.get('training', {}).get('n_iters', 100)
         
         for iteration in range(n_iters):
-            result = self.trainer.run_one_step()
-            results.append(result)
+            # Run one training step
+            self.trainer.run_one_step()
             
-            # Check for early stopping
-            if self.config.get('training', {}).get('early_stopping', True):
-                if len(results) > 10:
-                    recent_rewards = [r.get('reward', 0) for r in results[-10:]]
-                    if all(r == recent_rewards[0] for r in recent_rewards):
-                        break
+            # Check if training is done
+            if self.trainer.done:
+                break
+                
+            # Print progress periodically
+            if iteration % 10 == 0 and hasattr(self.trainer, 'p_r_best') and self.trainer.p_r_best is not None:
+                print(f"[Iteration {iteration}] Best reward: {self.trainer.p_r_best.r:.4f}")
         
-        # Return the best result
-        if results:
-            best_result = max(results, key=lambda x: x.get('reward', 0))
-            return best_result
+        # Return the best program found
+        if hasattr(self.trainer, 'p_r_best') and self.trainer.p_r_best is not None:
+            p = self.trainer.p_r_best
+            result = {
+                "reward": p.r,
+                "expression": repr(p.sympy_expr) if hasattr(p, 'sympy_expr') else str(p),
+                "program": p,
+                "traversal": repr(p)
+            }
+            return result
         else:
-            return {'reward': 0, 'program': None}
+            return {'reward': 0, 'program': None, 'expression': None}
         
     def _process_results(self, results):
         """Process and enhance training results."""

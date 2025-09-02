@@ -22,6 +22,14 @@ from .modular_policy import (
     ModularRNNPolicy
 )
 
+# Import DeepSymbolicOptimizer from the parent core.py file for backward compatibility
+import os
+import importlib.util
+spec = importlib.util.spec_from_file_location("_core", os.path.join(os.path.dirname(__file__), "..", "core.py"))
+_core = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(_core)
+DeepSymbolicOptimizer = _core.DeepSymbolicOptimizer
+
 __all__ = [
     'DataVariant',
     'DataShape', 
@@ -30,5 +38,6 @@ __all__ = [
     'ModularProgram',
     'ProgramExecutor',
     'MultiProgram',
-    'ModularRNNPolicy'
+    'ModularRNNPolicy',
+    'DeepSymbolicOptimizer'
 ]
