@@ -5,8 +5,8 @@ import json
 import time
 from itertools import compress
 
-# Import TensorFlow 2.x
-import tensorflow as tf
+# Import TensorFlow with optimized configuration
+from dso.tf_config import tf
 import numpy as np
 
 from dso.program import Program, from_tokens

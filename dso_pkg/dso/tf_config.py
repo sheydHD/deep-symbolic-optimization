@@ -1,6 +1,7 @@
 """TensorFlow 2.x configuration and setup utilities."""
 
 import tensorflow as tf
+import numpy as np
 import os
 import warnings
 import logging
@@ -22,8 +23,19 @@ warnings.filterwarnings('ignore', message='pkg_resources is deprecated', categor
 def setup_tensorflow():
     """Configure TensorFlow 2.x with optimal settings for DSO."""
     
-    # Enable eager execution (default in TF2 but explicit for clarity)
-    tf.config.run_functions_eagerly(False)  # Use graph mode for performance
+    # CRITICAL: Set random seeds for reproducibility (like TF1 hybrid approach)
+    tf.random.set_seed(0)
+    np.random.seed(0)
+    
+    # CRITICAL: Enable deterministic operations for numerical consistency
+    tf.config.experimental.enable_op_determinism()
+    
+    # Use graph mode for better performance and determinism (like TF1)
+    tf.config.run_functions_eagerly(False)
+    
+    # CRITICAL: Single-threaded execution for deterministic behavior (like TF1)
+    tf.config.threading.set_intra_op_parallelism_threads(1)
+    tf.config.threading.set_inter_op_parallelism_threads(1)
     
     # Configure GPU if available
     gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -37,10 +49,6 @@ def setup_tensorflow():
     
     # Set floating point precision
     tf.keras.backend.set_floatx('float32')
-    
-    # Configure threading for CPU
-    tf.config.threading.set_intra_op_parallelism_threads(0)  # Use all available cores
-    tf.config.threading.set_inter_op_parallelism_threads(0)  # Use all available cores
 
 
 def enable_mixed_precision():
@@ -102,6 +110,9 @@ name_scope = tf.name_scope
 random_normal = tf.random.normal
 random_uniform = tf.random.uniform
 set_random_seed = tf.random.set_seed
+
+# Initialize TensorFlow with deterministic settings
+setup_tensorflow()
 
 # Control flow
 cond = tf.cond

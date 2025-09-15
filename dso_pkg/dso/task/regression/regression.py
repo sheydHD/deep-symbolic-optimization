@@ -232,24 +232,6 @@ class RegressionTask(HierarchicalTask):
         if p.invalid:
             return -1.0 if optimizing else self.invalid_reward
 
-        # Handle MIMO data: if y_train is multi-dimensional but y_hat is scalar,
-        # we need to handle this properly for MIMO learning
-        if self.y_train.ndim > 1 and y_hat.ndim == 1:
-            # For MIMO data, compute the reward for each output dimension
-            # and use the maximum reward (best match across all outputs)
-            # This encourages finding programs that match at least one output well
-            rewards = []
-            for i in range(self.y_train.shape[1]):
-                y_train_i = self.y_train[:, i]
-                if optimizing:
-                    reward_i = self.const_opt_metric(y_train_i, y_hat)
-                else:
-                    reward_i = self.metric(y_train_i, y_hat)
-                rewards.append(reward_i)
-            
-            # Use the maximum reward to encourage learning any of the target functions
-            return max(rewards)
-
         # Observation noise
         # For reward_noise_type == "y_hat", success must always be checked to
         # ensure success cases aren't overlooked due to noise. If successful,
@@ -289,28 +271,11 @@ class RegressionTask(HierarchicalTask):
             success = False
 
         else:
-            # Handle MIMO data in evaluation
-            if self.y_test.ndim > 1 and y_hat.ndim == 1:
-                # For MIMO data, compute NMSE for each output dimension and average
-                nmse_test = 0
-                nmse_test_noiseless = 0
-                for i in range(self.y_test.shape[1]):
-                    y_test_i = self.y_test[:, i]
-                    y_test_noiseless_i = self.y_test_noiseless[:, i]
-                    var_y_test_i = np.var(y_test_i)
-                    var_y_test_noiseless_i = np.var(y_test_noiseless_i)
-                    
-                    nmse_test += np.mean((y_test_i - y_hat) ** 2) / var_y_test_i
-                    nmse_test_noiseless += np.mean((y_test_noiseless_i - y_hat) ** 2) / var_y_test_noiseless_i
-                
-                nmse_test /= self.y_test.shape[1]
-                nmse_test_noiseless /= self.y_test.shape[1]
-            else:
-                # NMSE on test data (used to report final error)
-                nmse_test = np.mean((self.y_test - y_hat) ** 2) / self.var_y_test
+            # NMSE on test data (used to report final error)
+            nmse_test = np.mean((self.y_test - y_hat) ** 2) / self.var_y_test
 
-                # NMSE on noiseless test data (used to determine recovery)
-                nmse_test_noiseless = np.mean((self.y_test_noiseless - y_hat) ** 2) / self.var_y_test_noiseless
+            # NMSE on noiseless test data (used to determine recovery)
+            nmse_test_noiseless = np.mean((self.y_test_noiseless - y_hat) ** 2) / self.var_y_test_noiseless
 
             # Success is defined by NMSE on noiseless test data below a threshold
             success = nmse_test_noiseless < self.threshold

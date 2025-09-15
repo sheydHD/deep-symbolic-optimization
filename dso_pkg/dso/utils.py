@@ -10,7 +10,7 @@ import random
 import re
 import os
 import pandas as pd
-import tensorflow as tf
+from dso.tf_config import tf
 from contextlib import contextmanager
 
 import sympy.parsing.sympy_parser as sympy_parser

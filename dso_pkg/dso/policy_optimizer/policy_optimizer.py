@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-import tensorflow as tf
+from dso.tf_config import tf
 import numpy as np
 
 from dso.program import Program
