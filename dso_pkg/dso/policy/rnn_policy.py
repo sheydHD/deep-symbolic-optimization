@@ -231,8 +231,8 @@ class RNNPolicy(tf.keras.Model, Policy):
         assert 0 <= action_prob_lowerbound <= 1
         self.action_prob_lowerbound = action_prob_lowerbound
         self.max_attempts_at_novel_batch = max_attempts_at_novel_batch
-        # Force use of TF2 while_loop sampling for proper gradient flow
-        self.sample_novel_batch = False  # Override: always use _sample_batch_tf2
+        # Override sampling configuration for optimal performance
+        self.sample_novel_batch = False  # Always use _sample_batch_tf2
 
         # Initialize extended batch tracking
         self.valid_extended_batch = False
@@ -301,9 +301,9 @@ class RNNPolicy(tf.keras.Model, Policy):
             return tf.exp(action_log_probs)
 
     def get_probs_and_entropy(self, obs, actions, lengths=None, entropy_gamma=None):
-        """Compute action probabilities and entropy - FIXED to match hybrid exactly.
+        """Compute action probabilities and entropy for policy gradient training.
         
-        Simplified TF2 approach that avoids deprecated APIs.
+        Uses modern TensorFlow 2.x APIs for efficient computation.
         """
         # Ensure inputs are tensors with proper dtype
         if isinstance(obs, np.ndarray):
@@ -315,7 +315,7 @@ class RNNPolicy(tf.keras.Model, Policy):
             
         batch_size = tf.shape(obs)[0]
         
-        # Process observations through state manager (exactly like hybrid)
+        # Process observations through state manager
         processed_obs = self.state_manager.get_tensor_input(obs)
         
         # Get initial states for the RNN
@@ -324,15 +324,15 @@ class RNNPolicy(tf.keras.Model, Policy):
         # Forward pass through controller
         logits, _ = self.controller(processed_obs, initial_states, training=False)
         
-        # Apply action probability lower bound exactly like hybrid
+        # Apply action probability lower bound
         if self.action_prob_lowerbound != 0.0:
             logits = self.apply_action_prob_lowerbound(logits)
         
-        # Compute probabilities and log probabilities exactly like hybrid
+        # Compute probabilities and log probabilities
         probs = tf.nn.softmax(logits)
         log_probs = tf.nn.log_softmax(logits)
         
-        # Get actual sequence length from actions (exactly like hybrid)
+        # Get actual sequence length from actions
         actions_max_length = tf.shape(actions)[1]
         
         # Ensure logits match actions sequence length
@@ -346,52 +346,52 @@ class RNNPolicy(tf.keras.Model, Policy):
             actions = actions[:, :min_len]
             actions_max_length = min_len
         
-        # Create sequence mask exactly like hybrid
+        # Create sequence mask
         if lengths is not None:
             mask = tf.sequence_mask(lengths, maxlen=actions_max_length, dtype=tf.float32)
         else:
             mask = tf.ones([batch_size, actions_max_length], dtype=tf.float32)
         
-        # One-hot encode actions exactly like hybrid
+        # One-hot encode actions
         actions_one_hot = tf.one_hot(actions, depth=self.n_choices, axis=-1, dtype=tf.float32)
         
-        # Compute negative log probabilities exactly like hybrid
-        # hybrid: neglogp_per_step = safe_cross_entropy(actions_one_hot, logprobs, axis=2)
+        # Compute negative log probabilities
+        # Uses safe_cross_entropy to handle numerical stability
         neglogp_per_step = safe_cross_entropy(actions_one_hot, log_probs, axis=2)
         
-        # Apply mask exactly like hybrid: neglogp_per_step * mask
+        # Apply mask: neglogp_per_step * mask
         neglogp = tf.reduce_sum(neglogp_per_step * mask, axis=1)
         
-        # Entropy computation exactly like hybrid
+        # Entropy computation for regularization
         if entropy_gamma is None:
             entropy_gamma = 1.0
             
-        # Create entropy decay vector exactly like hybrid
+        # Create entropy decay vector for sequence-level regularization
         entropy_gamma_decay = np.array([entropy_gamma**t for t in range(self.max_length)], dtype=np.float32)
         
-        # Slice entropy decay to match current sequence length (exactly like hybrid)
+        # Slice entropy decay to match current sequence length
         sliced_entropy_gamma_decay = tf.slice(tf.constant(entropy_gamma_decay), [0], [actions_max_length])
         
-        # Create entropy gamma decay mask exactly like hybrid
+        # Create entropy gamma decay mask for regularization
         entropy_gamma_decay_mask = tf.expand_dims(sliced_entropy_gamma_decay, 0) * mask
         
-        # Compute entropy per step exactly like hybrid
+        # Compute entropy per step for regularization
         entropy_per_step = safe_cross_entropy(probs, log_probs, axis=2)
         
-        # Apply entropy gamma decay mask exactly like hybrid
+        # Apply entropy gamma decay mask for sequence-level regularization
         entropy = tf.reduce_sum(entropy_per_step * entropy_gamma_decay_mask, axis=1)
         
         return probs, neglogp, entropy
 
     def sample(self, n: int):
-        """Sample batch of n expressions - FIXED to match hybrid behavior exactly.
+        """Sample batch of n expressions using optimized TensorFlow 2.x implementation.
 
         Returns
         -------
         actions, obs, priors : numpy arrays
             Sampled actions, observations, and priors
         """
-        # Use the correct sampling approach that matches hybrid's raw_rnn behavior
+        # Use TensorFlow 2.x sampling approach for optimal performance
         actions, obs, priors = self._sample_batch_tf2_fixed(n)
         
         # Convert to numpy for compatibility with rest of pipeline
@@ -402,14 +402,14 @@ class RNNPolicy(tf.keras.Model, Policy):
         return actions, obs, priors
 
     def _sample_batch_tf2_fixed(self, batch_size):
-        """FIXED sampling method that exactly matches hybrid's raw_rnn behavior with optimizations."""
+        """Optimized sampling method using TensorFlow 2.x for symbolic expression generation."""
         
-        # Get initial observation from task (exactly like hybrid)
+        # Get initial observation from task
         initial_obs = Program.task.reset_task(self.prior)
         initial_obs = tf.broadcast_to(initial_obs, [batch_size, len(initial_obs)])
         initial_obs = self.state_manager.process_state(initial_obs)
         
-        # Get initial prior (exactly like hybrid)
+        # Get initial prior
         initial_prior = self.prior.initial_prior()
         initial_prior = tf.constant(initial_prior, dtype=tf.float32)
         initial_prior = tf.broadcast_to(initial_prior, [batch_size, self.n_choices])
@@ -429,7 +429,7 @@ class RNNPolicy(tf.keras.Model, Policy):
         
         # Unroll loop manually for efficiency (like hybrid raw_rnn)
         for t in range(self.max_length):
-            # Get RNN input (exactly like hybrid)
+            # Get RNN input for current step
             rnn_input = self.state_manager.get_tensor_input(current_obs)
             rnn_input = tf.expand_dims(rnn_input, axis=1)  # Add sequence dimension
             

@@ -31,7 +31,7 @@ def create_batch_spec(x_dim=None, name=None, max_length=64):
         Dimensionality of X. None corresponds to a variable length.
     
     name : str or None
-        Optional name prefix (unused in TF2 but kept for compatibility).
+        Optional name prefix (unused in TensorFlow 2.x but kept for compatibility).
         
     max_length : int
         Maximum sequence length for actions and observations.
@@ -64,8 +64,9 @@ def create_batch_spec(x_dim=None, name=None, max_length=64):
     }
 
 
+@tf.function
 def convert_batch_to_tensors(batch):
-    """Convert a Batch object to TensorFlow tensors for TF2 eager execution.
+    """Convert a Batch object to TensorFlow tensors for eager execution.
     
     Parameters
     ----------
@@ -87,6 +88,32 @@ def convert_batch_to_tensors(batch):
         rewards=tf.convert_to_tensor(batch.rewards, dtype=tf.float32),
         on_policy=tf.convert_to_tensor(batch.on_policy, dtype=tf.bool)
     )
+
+
+@tf.function 
+def pad_action_obs_priors(actions, obs, priors, max_length):
+    """Efficiently pad sequences using TensorFlow operations."""
+    batch_size = tf.shape(actions)[0]
+    current_length = tf.shape(actions)[1]
+    
+    if current_length < max_length:
+        pad_length = max_length - current_length
+        
+        # Pad actions
+        actions_pad = tf.zeros([batch_size, pad_length], dtype=tf.int32)
+        actions = tf.concat([actions, actions_pad], axis=1)
+        
+        # Pad obs
+        obs_shape = tf.shape(obs)
+        obs_pad = tf.zeros([batch_size, obs_shape[1], pad_length], dtype=tf.float32)
+        obs = tf.concat([obs, obs_pad], axis=2)
+        
+        # Pad priors
+        priors_shape = tf.shape(priors)
+        priors_pad = tf.zeros([batch_size, pad_length, priors_shape[2]], dtype=tf.float32)
+        priors = tf.concat([priors, priors_pad], axis=1)
+    
+    return actions, obs, priors
 
 
 def preserve_global_rng_state(f: Callable):
@@ -395,7 +422,7 @@ class cached_property(object):
 
 @contextmanager
 def summary_writer(logdir):
-    """Yields a TF2 summary writer and ensures it is flushed on exit."""
+    """Yields a TensorFlow 2.x summary writer and ensures it is flushed on exit."""
     writer = tf.summary.create_file_writer(logdir)
     with writer.as_default():
         yield writer
@@ -404,6 +431,6 @@ def summary_writer(logdir):
 
 @contextmanager
 def tf_function_cache():
-    """Context manager for TF2 function compilation and caching."""
-    # In TF2, we can use this for any additional function caching needs
+    """Context manager for TensorFlow 2.x function compilation and caching."""
+    # In TensorFlow 2.x, we can use this for any additional function caching needs
     yield

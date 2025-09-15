@@ -74,35 +74,41 @@ class PGPolicyOptimizer(PolicyOptimizer):
 
 
 
+    @tf.function
+    def _compute_batch_loss(self, baseline, sampled_batch):
+        """Compute loss and gradients using TensorFlow 2.x."""
+        # Extract rewards and convert to proper type
+        rewards = tf.cast(sampled_batch.rewards, tf.float32)
+        baseline_tf = tf.cast(baseline, tf.float32)
+        
+        # Compute advantages: (R - b)
+        advantages = rewards - baseline_tf
+        
+        # Get negative log probabilities and entropy
+        neglogp, entropy = self.policy.make_neglogp_and_entropy(sampled_batch, self.entropy_gamma)
+        
+        # Policy gradient loss: mean((R - b) * neglogp)
+        pg_loss = tf.reduce_mean(advantages * neglogp)
+        
+        # Entropy loss: -entropy_weight * mean(entropy)
+        entropy_loss = -self.entropy_weight * tf.reduce_mean(entropy)
+        
+        # Total loss: entropy_loss + pg_loss
+        total_loss = entropy_loss + pg_loss
+        
+        return total_loss, pg_loss, entropy_loss
+
     def train_step(self, baseline, sampled_batch):
-        """FIXED TF2 approach that exactly matches hybrid's numerical behavior."""
-        # Increment iteration counter exactly like hybrid
+        """Train the policy using policy gradient optimization."""
+        # Increment iteration counter
         if not hasattr(self, 'iterations'):
             self.iterations = tf.Variable(0, dtype=tf.int64, name="iterations")
         self.iterations.assign_add(1)
         
         with tf.GradientTape() as tape:
-            # Extract rewards and convert to proper type (exactly like hybrid)
-            rewards = tf.cast(sampled_batch.rewards, tf.float32)
-            baseline_tf = tf.cast(baseline, tf.float32)
-            
-            # Compute advantages exactly like hybrid: (R - b)
-            advantages = rewards - baseline_tf
-            
-            # Get negative log probabilities and entropy exactly like hybrid
-            # This calls the exact same method that hybrid uses
-            neglogp, entropy = self.policy.make_neglogp_and_entropy(sampled_batch, self.entropy_gamma)
-            
-            # Policy gradient loss exactly like hybrid: mean((R - b) * neglogp)
-            pg_loss = tf.reduce_mean(advantages * neglogp)
-            
-            # Entropy loss exactly like hybrid: -entropy_weight * mean(entropy)
-            entropy_loss = -self.entropy_weight * tf.reduce_mean(entropy)
-            
-            # Total loss exactly like hybrid: entropy_loss + pg_loss
-            total_loss = entropy_loss + pg_loss
+            total_loss, pg_loss, entropy_loss = self._compute_batch_loss(baseline, sampled_batch)
         
-        # Apply gradients using modern TF2 (replaces sess.run(train_op))
+        # Apply gradients using TensorFlow 2.x optimizers
         trainable_vars = self.policy.controller.trainable_variables
         gradients = tape.gradient(total_loss, trainable_vars)
         
@@ -112,5 +118,9 @@ class PGPolicyOptimizer(PolicyOptimizer):
         if filtered_gradients:
             self.optimizer.apply_gradients(filtered_gradients)
         
-        # Return None exactly like hybrid
-        return None
+        # Return summaries for logging
+        return {
+            'total_loss': total_loss,
+            'pg_loss': pg_loss,
+            'entropy_loss': entropy_loss
+        }

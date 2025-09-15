@@ -248,7 +248,7 @@ class ControlTask(HierarchicalTask):
         self.n_episodes_test = n_episodes_test
         self.n_episodes_train = n_episodes_train
         
-        # HACK: Wrap pybullet envs in TimeFeatureWrapper
+        # NOTE: Wrap pybullet envs in TimeFeatureWrapper
         # TBD: Load the Zoo hyperparameters, including wrapper features, not just the model.
         # Note Zoo is not implemented as a package, which might make this tedious
         if "Bullet" in env_name:

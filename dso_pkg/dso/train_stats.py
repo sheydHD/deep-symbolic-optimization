@@ -1,7 +1,7 @@
 """Performs computations and file manipulations for train statistics logging purposes"""
 import os
 import numpy as np
-import tensorflow as tf
+from dso.tf_config import tf
 from datetime import datetime
 import pandas as pd
 from dso.program import Program, from_tokens
@@ -255,8 +255,23 @@ class StatsLogger():
             self.write_token_count(programs)
 
         # summary writers have their own buffer
-        if self.save_summary:
-            pass
+        if self.save_summary and self.summary_writer:
+            with self.summary_writer.as_default():
+                tf.summary.scalar('reward_best', r_best, step=iteration)
+                tf.summary.scalar('reward_max', r_max, step=iteration)
+                tf.summary.scalar('reward_avg_full', r_avg_full, step=iteration)
+                tf.summary.scalar('reward_avg_sub', r_avg_sub, step=iteration)
+                tf.summary.scalar('length_avg_full', l_avg_full, step=iteration)
+                tf.summary.scalar('length_avg_sub', l_avg_sub, step=iteration)
+                tf.summary.scalar('baseline', baseline, step=iteration)
+                tf.summary.scalar('entropy_full', a_ent_full, step=iteration)
+                tf.summary.scalar('entropy_sub', a_ent_sub, step=iteration)
+                tf.summary.scalar('invalid_avg_full', invalid_avg_full, step=iteration)
+                tf.summary.scalar('invalid_avg_sub', invalid_avg_sub, step=iteration)
+                # Write any additional summaries passed from the policy
+                if summaries:
+                    for key, value in summaries.items():
+                        tf.summary.scalar(key, value, step=iteration)
 
         # Should the buffer be saved now?
         if iteration % self.buffer_frequency == 0:
@@ -442,3 +457,11 @@ class StatsLogger():
             shutil.copyfileobj(buffer, f, -1)
         # clear buffer
         return BytesIO() if byte_buffer else StringIO()
+
+    def close(self):
+        """Close summary writer and flush any remaining buffers."""
+        if self.summary_writer:
+            self.summary_writer.close()
+        
+        # Flush any remaining buffers
+        self.flush_buffers()

@@ -413,7 +413,7 @@ class Library():
 
         if isinstance(inputs, str):
             inputs = inputs.split(',')
-        elif not isinstance(inputs, list) and not isinstance(inputs, np.ndarray): # TBD FIX HACK
+        elif not isinstance(inputs, list) and not isinstance(inputs, np.ndarray): # TODO: Improve type handling
             inputs = [inputs]
         tokens = [input_ if isinstance(input_, Token) else self[input_] for input_ in inputs]
         return tokens

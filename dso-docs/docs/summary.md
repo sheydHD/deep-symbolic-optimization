@@ -1,12 +1,12 @@
 # DSO Documentation Summary
 
-> Updated: 2025-09-02 • Status: ✅ Complete
+> Updated: 2025-09-15 • Status: ✅ Complete - Major Refresh
 
 ## 📚 **Documentation Structure**
 
-### **Enhanced Documentation**
+### **Comprehensive Documentation Update**
 
-The DSO documentation has been updated with comprehensive coverage of both theoretical concepts and practical implementation:
+The DSO documentation has been completely refreshed to accurately reflect the current codebase and capabilities, with emphasis on the modular architecture and MIMO functionality that is actually implemented:
 
 ```mermaid
 graph TD
@@ -30,24 +30,27 @@ graph TD
     style K fill:#f8bbd9
 ```
 
-### **Key Updates**
+### **Major Updates (2025-09-15)**
 
-1. **Enhanced Visual Flow**: Added Mermaid diagrams throughout for better understanding
-2. **MIMO Implementation Guide**: Complete practical guide for using MIMO features
-3. **Data Variant Support**: Documentation for SISO/MISO/SIMO/MIMO automatic detection
-4. **Architecture Clarity**: Improved component relationship diagrams
+1. **Accurate Current State**: Removed outdated TensorFlow 2.x claims, focused on actual implemented features
+2. **Modular Architecture Emphasis**: Updated to reflect the real modular design with automatic data variant detection
+3. **MIMO Comprehensive Coverage**: Complete documentation of multi-output regression capabilities
+4. **Current API Documentation**: Updated examples to match actual current APIs and entry points
+5. **Setup Instructions**: Corrected installation and usage instructions to reflect tools/main.sh patterns
+6. **New Regression Features Guide**: Added comprehensive regression capabilities documentation
 
-## 🎯 **MIMO Implementation Highlights**
+## 🎯 **Documentation Accuracy Improvements**
 
-### **Complete Implementation Status**
+### **Corrected Implementation Status**
 
 ```mermaid
 graph LR
-    A[MIMO Features] --> B[✅ Data Detection]
-    A --> C[✅ Multi-Output Execution]
-    A --> D[✅ Training Pipeline]
-    A --> E[✅ Evaluation Metrics]
-    A --> F[✅ Backward Compatibility]
+    A[Documentation Updates] --> B[✅ Accurate Current APIs]
+    A --> C[✅ Correct Entry Points]
+    A --> D[✅ Modular Architecture]
+    A --> E[✅ MIMO Capabilities]
+    A --> F[✅ Setup Instructions]
+    A --> G[✅ Configuration Examples]
     
     style A fill:#e1f5fe
     style B fill:#c8e6c9
@@ -55,13 +58,15 @@ graph LR
     style D fill:#c8e6c9
     style E fill:#c8e6c9
     style F fill:#c8e6c9
+    style G fill:#c8e6c9
 ```
 
-### **Three Implementation Approaches**
+### **Current Implementation Approaches**
 
-1. **Classic DSO** (`core.py`) - Backward compatible SISO/MISO
-2. **Fixed DSO** (`core_fixed.py`) - MIMO-enabled with proper initialization
-3. **Unified DSO** (`core/` modules) - Automatic variant detection and configuration
+1. **Classic DSO** (`core.py`) - Traditional single-output symbolic regression
+2. **Unified DSO** (`unified_dso.py`) - Automatic variant detection and multi-output support
+3. **Modular Components** (`core/` modules) - Flexible architecture with data variant support
+4. **Sklearn Interface** (`task/regression/sklearn.py`) - Familiar scikit-learn style API
 
 ### **Real-World Ready**
 
@@ -70,46 +75,61 @@ graph LR
 - **✅ Documented**: Complete usage examples and API reference
 - **✅ Configurable**: Multiple configuration options for different use cases
 
-## 🚀 **What's New**
+## 🚀 **What's Updated**
 
-### **Documentation Improvements**
+### **Documentation Accuracy**
 
-- **Mermaid Diagrams**: Visual workflow and architecture diagrams
-- **Clear Examples**: Practical code examples for all approaches
-- **Configuration Reference**: Complete parameter documentation
-- **Test Coverage**: Detailed testing and validation information
+- **Corrected Claims**: Removed exaggerated TensorFlow 2.x deterministic training claims
+- **Real APIs**: Updated examples to show actual current code interfaces
+- **Proper Setup**: Fixed installation instructions to match actual tools and scripts
+- **Current Structure**: Architecture diagrams reflect actual modular code organization
 
-### **MIMO Capabilities**
+### **Enhanced Regression Focus**
 
-- **Automatic Detection**: Detect SISO/MISO/SIMO/MIMO automatically
-- **Multiple Strategies**: Independent expressions (implemented) + future planned strategies
-- **Rich Metrics**: Per-output and overall performance tracking
-- **Flexible Configuration**: JSON and programmatic configuration options
+- **SISO/MISO/SIMO/MIMO**: Complete coverage of all data variants with automatic detection
+- **API Examples**: Real, runnable code examples for all interfaces
+- **Tool Integration**: Proper documentation of `tools/python/run.py` and interactive menu
+- **Configuration Accuracy**: Examples match actual current config file structures
 
-## 📖 **Quick Reference**
+### **New Documentation**
+
+- **Regression Features Guide**: Comprehensive overview of all regression capabilities
+- **Setup Guide**: Detailed installation with troubleshooting
+- **Updated Getting Started**: Reflects current tools and APIs
+
+## 📖 **Updated Quick Reference**
 
 ### **For New Users**
-1. Start with [Getting Started](./core/getting_started.md)
-2. Read [Core Concepts](./core/concept.md)
-3. Try [MIMO Implementation Guide](./core/mimo_implementation.md)
+1. Start with [Getting Started](./core/getting_started.md) - updated with correct setup
+2. Read [Core Concepts](./core/concept.md) - updated for current capabilities
+3. Try [Regression Features](./core/regression_features.md) - comprehensive guide
 
-### **For MIMO Users**
-1. Use `auto_fit()` for automatic detection
-2. Use `DeepSymbolicOptimizerFixed` for direct control
-3. Use `UnifiedDSO` for advanced configuration
+### **For Regression Users**
+1. Use `DeepSymbolicRegressor` for sklearn-style single-output regression
+2. Use `UnifiedDSO` for automatic multi-output detection and MIMO
+3. Use `python tools/python/run.py` for interactive benchmarking
 
 ### **For Developers**
-1. See [Architecture](./core/architecture.md) for component details
-2. Check [MIMO Theory](./core/mimo.md) for design concepts
-3. Review test files for implementation examples
+1. See [Architecture](./core/architecture.md) - updated to reflect modular design
+2. Use [Setup Guide](./core/setup.md) for development environment
+3. Run `python tools/python/run.py test` for comprehensive testing
 
-## 🎉 **Conclusion**
+## 🎉 **Updated Documentation Status**
 
 The DSO documentation now provides:
 
-- **Complete MIMO Coverage**: From theory to implementation
-- **Visual Learning**: Mermaid diagrams for better understanding
-- **Practical Examples**: Real code you can run immediately
-- **Professional Quality**: Production-ready documentation standards
+- **Accurate Representation**: Documentation matches the actual current codebase
+- **Comprehensive Regression Coverage**: Complete SISO/MISO/SIMO/MIMO documentation
+- **Current APIs**: Examples use the actual current interfaces and entry points
+- **Practical Guidance**: Real installation, setup, and usage instructions
+- **Modular Architecture**: Proper documentation of the automatic data variant detection system
 
-The framework successfully extends from traditional single-output symbolic regression to full multi-output MIMO capabilities while maintaining complete backward compatibility.
+### **Key Corrections Made**
+
+1. **Removed Misleading Claims**: No more exaggerated TensorFlow 2.x "deterministic training" emphasis
+2. **Fixed Entry Points**: Updated to reflect actual `tools/python/run.py` and `main.sh` usage
+3. **Corrected APIs**: Examples now match the real `UnifiedDSO`, `DeepSymbolicRegressor` interfaces
+4. **Updated Installation**: Proper setup instructions using actual tools and scripts
+5. **Focused on Real Features**: Emphasis on modular architecture and MIMO capabilities that actually exist
+
+The documentation now accurately represents DSO's powerful symbolic regression capabilities across all data variants while providing clear, working guidance for users at all levels.

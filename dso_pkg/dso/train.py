@@ -117,7 +117,7 @@ class Trainer(tf.Module):
 
 
         """
-        # TF2: No need to initialize variables manually - they're initialized when created
+        # TensorFlow 2.x: Variables are initialized automatically when created
         # Initialize tf.Module first
         super().__init__()
         
@@ -137,10 +137,55 @@ class Trainer(tf.Module):
         self.debug = debug
         self.use_memory = use_memory
         self.memory_threshold = memory_threshold
+        
+        # Training state
+        self.iteration = 0
+        self.nevals = 0
+        self.done = False
+        
+        # Initialize training variables that will be set during training
+        self.r_best = -np.inf  # Best reward seen so far
+        self.p_r_best = None   # Best program seen so far
+        
+        # Initialize priority queue (this will be set properly in the setup if needed)
+        self.priority_queue = None
+        self.memory_queue = None
+
+    @tf.function
+    def _compute_baseline_tf1_hybrid(self, rewards, quantile, ewma, alpha):
+        """Compute baseline value for variance reduction in policy gradient training."""
+        rewards_tf = tf.cast(rewards, tf.float32)
+        quantile_tf = tf.cast(quantile, tf.float32)
+        
+        if self.baseline == "ewma_R":
+            if ewma is None:
+                new_ewma = tf.reduce_mean(rewards_tf)
+            else:
+                new_ewma = alpha * tf.reduce_mean(rewards_tf) + (1 - alpha) * ewma
+            baseline = new_ewma
+        elif self.baseline == "R_e":  # Default
+            baseline = quantile_tf
+        elif self.baseline == "ewma_R_e":
+            if ewma is None:
+                new_ewma = tf.reduce_min(rewards_tf)
+            else:
+                new_ewma = alpha * quantile_tf + (1 - alpha) * ewma
+            baseline = new_ewma
+        elif self.baseline == "combined":
+            mean_reward = tf.reduce_mean(rewards_tf)
+            if ewma is None:
+                new_ewma = mean_reward - quantile_tf
+            else:
+                new_ewma = alpha * (mean_reward - quantile_tf) + (1 - alpha) * ewma
+            baseline = quantile_tf + new_ewma
+        else:
+            baseline = tf.reduce_mean(rewards_tf)
+            
+        return baseline
 
         if self.debug:
             def print_var_means():
-                # TF2: Get trainable variables from the policy model
+                # Get trainable variables from the policy model
                 if hasattr(self.policy, 'trainable_variables'):
                     tvars = self.policy.trainable_variables
                     for var in tvars:
@@ -199,6 +244,10 @@ class Trainer(tf.Module):
             Tuple of (actions, obs, priors, programs) to train on offline
             samples instead of sampled
         """
+        # Set deterministic seeds for this iteration
+        from dso.tf_config import set_deterministic_seeds
+        set_deterministic_seeds(self.iteration)
+        
         positional_entropy = None
         top_samples_per_batch = list()
         if self.debug >= 1:

@@ -23,19 +23,27 @@ warnings.filterwarnings('ignore', message='pkg_resources is deprecated', categor
 def setup_tensorflow():
     """Configure TensorFlow 2.x with optimal settings for DSO."""
     
-    # CRITICAL: Set random seeds for reproducibility (like TF1 hybrid approach)
+    # Set random seeds for reproducibility
     tf.random.set_seed(0)
     np.random.seed(0)
     
-    # CRITICAL: Enable deterministic operations for numerical consistency
+    # Set Python random seed for complete reproducibility
+    import random
+    random.seed(0)
+    
+    # Enable deterministic operations for numerical consistency
     tf.config.experimental.enable_op_determinism()
     
-    # Use graph mode for better performance and determinism (like TF1)
+    # Force deterministic GPU operations
+    os.environ['TF_DETERMINISTIC_OPS'] = '1'
+    os.environ['TF_CUDNN_DETERMINISTIC'] = '1'
+    
+    # Use graph mode for better performance and determinism
     tf.config.run_functions_eagerly(False)
     
-    # CRITICAL: Single-threaded execution for deterministic behavior (like TF1)
-    tf.config.threading.set_intra_op_parallelism_threads(1)
+    # Single-threaded execution for deterministic behavior
     tf.config.threading.set_inter_op_parallelism_threads(1)
+    tf.config.threading.set_intra_op_parallelism_threads(1)
     
     # Configure GPU if available
     gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -49,6 +57,9 @@ def setup_tensorflow():
     
     # Set floating point precision
     tf.keras.backend.set_floatx('float32')
+    
+    # Optimize JIT compilation
+    tf.config.optimizer.set_jit(True)
 
 
 def enable_mixed_precision():
@@ -57,10 +68,23 @@ def enable_mixed_precision():
     tf.keras.mixed_precision.set_global_policy(policy)
 
 
+def set_deterministic_seeds(seed=0):
+    """Set all random seeds for complete reproducibility."""
+    tf.random.set_seed(seed)
+    np.random.seed(seed)
+    
+    # Also set Python random seed
+    import random
+    random.seed(seed)
+    
+    # Set environment variables for deterministic behavior
+    os.environ['PYTHONHASHSEED'] = str(seed)
+
+
 # Initialize TensorFlow with optimal settings
 setup_tensorflow()
 
-# Modern TF2 API aliases - No more compat.v1!
+# Modern TensorFlow 2.x API aliases
 # Core tensor operations
 convert_to_tensor = tf.convert_to_tensor
 constant = tf.constant
@@ -79,7 +103,7 @@ dense = tf.keras.layers.Dense
 dropout = tf.keras.layers.Dropout
 batch_normalization = tf.keras.layers.BatchNormalization
 
-# Optimizers (modern TF2 versions)
+# Optimizers
 AdamOptimizer = tf.keras.optimizers.Adam
 RMSPropOptimizer = tf.keras.optimizers.RMSprop  
 GradientDescentOptimizer = tf.keras.optimizers.SGD
@@ -99,11 +123,11 @@ zeros_initializer = tf.zeros_initializer
 ones_initializer = tf.ones_initializer
 random_normal_initializer = tf.random_normal_initializer
 random_uniform_initializer = tf.random_uniform_initializer
-truncated_normal_initializer = tf.keras.initializers.TruncatedNormal  # TF2 equivalent
+truncated_normal_initializer = tf.keras.initializers.TruncatedNormal
 glorot_uniform_initializer = tf.keras.initializers.GlorotUniform
 glorot_normal_initializer = tf.keras.initializers.GlorotNormal
 
-# Variable scoping (TF2 style)
+# Variable scoping
 name_scope = tf.name_scope
 
 # Random operations

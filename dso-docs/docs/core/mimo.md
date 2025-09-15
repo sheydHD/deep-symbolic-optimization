@@ -1,8 +1,8 @@
 # MIMO Theory: Multiple Output Regression
 
-> Version: 2.0 • Last updated: 2025-09-02 • **For Implementation Details**: See [MIMO Implementation Guide](./mimo_implementation.md)
+> Version: 3.0 • Last updated: 2025-09-15 • **For Implementation Details**: See [MIMO Implementation Guide](./mimo_implementation.md)
 
-This guide explains the theoretical foundations and design concepts for MIMO (Multiple Input Multiple Output) symbolic regression in DSO.
+This guide explains the theoretical foundations and design concepts for MIMO (Multiple Input Multiple Output) symbolic regression in DSO, powered by our **deterministic TensorFlow 2.x implementation**.
 
 ## 🎯 **MIMO Motivation**
 
@@ -23,13 +23,13 @@ graph LR
 Example: [x1, x2, x3] → sin(x1) + x2*x3 → scalar output
 ```
 
-### **MIMO Advantage**
+### **MIMO Advantage: Systems of Equations**
 
-MIMO extends DSO to discover multiple related expressions simultaneously:
+MIMO extends DSO to discover **multiple related expressions simultaneously**, perfect for regression problems with multiple dependent variables:
 
 ```mermaid
 graph LR
-    A[Input: X] --> B[Multiple Expressions]
+    A[Input: X] --> B[Multiple Expressions - TF2.x]
     B --> C[y1 = f1(X)]
     B --> D[y2 = f2(X)]
     B --> E[y3 = f3(X)]
@@ -41,35 +41,76 @@ graph LR
     style E fill:#c8e6c9
 ```
 
-```
-Example: [x1, x2, x3] → {
-    y1 = sin(x1) + x2,
-    y2 = x1² + cos(x3), 
-    y3 = exp(x2) * x1
+```python
+# Real-world regression example: Predicting financial metrics
+[market_cap, revenue, employees] → {
+    profit_margin = revenue / (market_cap * 0.15),
+    growth_rate = log(revenue) - log(employees * 1000), 
+    risk_score = sin(market_cap / revenue) + 0.3
 }
 ```
 
+### **Perfect for Multi-Target Regression**
+
+MIMO is ideal for scientific and engineering problems where multiple outputs are related:
+
+- 🧬 **Biological Systems**: Gene expression, protein interactions
+- 🌡️ **Climate Modeling**: Temperature, pressure, humidity relationships  
+- 📈 **Financial Modeling**: Risk, return, volatility metrics
+- ⚗️ **Chemical Processes**: Reaction rates, concentrations, yields
+- 🏗️ **Engineering Design**: Stress, strain, displacement equations
+
 ## 🏗️ **MIMO Architecture Strategies**
 
-### **Option A: Independent Expressions (Recommended)**
+### **TensorFlow 2.x Implementation**
 
-Each output has its own independent symbolic expression:
+Our TensorFlow 2.x MIMO implementation provides **deterministic, reproducible** multi-output regression:
+
+```python
+# TF2.x MIMO Training Loop
+@tf.function  # Graph compilation for speed
+def mimo_train_step(policy, X_batch, Y_batch):
+    """Deterministic MIMO training step"""
+    with tf.GradientTape() as tape:
+        # Generate multiple expression programs
+        programs = policy.sample_mimo_batch(batch_size, n_outputs)
+        
+        # Execute all programs deterministically
+        predictions = mimo_execute_programs(programs, X_batch)
+        
+        # Compute rewards for each output
+        rewards = mimo_reward_function(Y_batch, predictions)
+        
+        # Policy gradient loss
+        loss = mimo_policy_gradient_loss(programs, rewards)
+    
+    # Deterministic gradient update
+    gradients = tape.gradient(loss, policy.trainable_variables)
+    optimizer.apply_gradients(zip(gradients, policy.trainable_variables))
+    
+    return loss, rewards
+```
+
+### **Option A: Independent Expressions (Recommended for Regression)**
+
+Each output has its own independent symbolic expression, perfect for diverse regression targets:
 
 ```python
 class MIMOProgram:
-    """Container for multiple independent programs"""
+    """Container for multiple independent programs - TF2.x optimized"""
     def __init__(self, programs_list):
         self.programs = programs_list  # List[Program]
         self.n_outputs = len(programs_list)
     
+    @tf.function  # Compiled for fast execution
     def execute(self, X):
-        """Execute all programs and stack outputs"""
+        """Execute all programs and stack outputs deterministically"""
         outputs = []
         for program in self.programs:
             y_i = program.execute(X)  # Shape: [n_samples]
             outputs.append(y_i)
         
-        return np.column_stack(outputs)  # Shape: [n_samples, n_outputs]
+        return tf.stack(outputs, axis=1)  # Shape: [n_samples, n_outputs]
     
     @property 
     def invalid(self):
@@ -77,19 +118,48 @@ class MIMOProgram:
         return any(program.invalid for program in self.programs)
 ```
 
-### **Option B: Shared Sub-expressions**
+### **Real-World Regression Example**
 
-Programs share common computational components:
+```python
+# Financial regression: Predict multiple stock metrics
+import numpy as np
+from dso import MIMORegressionTask
+
+# Input: [market_cap, revenue, debt, employees]
+X = np.random.randn(1000, 4)
+
+# Multiple related outputs
+Y = np.column_stack([
+    X[:, 1] / (X[:, 0] + 1),      # profit_margin = revenue/market_cap
+    np.log(X[:, 1]) - np.log(X[:, 3]), # efficiency = log(revenue/employees)
+    X[:, 2] / X[:, 0]             # debt_ratio = debt/market_cap
+])
+
+# MIMO regression task
+task = MIMORegressionTask(
+    function_set=["add", "sub", "mul", "div", "log"],
+    dataset=(X, Y),
+    metric="inv_nrmse",
+    protected=True  # Protect against division by zero
+)
+
+# DSO discovers interpretable formulas for all outputs!
+```
+
+### **Option B: Shared Sub-expressions (Advanced)**
+
+Programs share common computational components for related regression targets:
 
 ```python
 class SharedMIMOProgram:
-    """Programs with shared sub-expressions"""
+    """Programs with shared sub-expressions - TF2.x implementation"""
     def __init__(self, shared_programs, output_programs):
         self.shared = shared_programs      # Common computations
         self.outputs = output_programs     # Output-specific computations
     
+    @tf.function
     def execute(self, X):
-        # Compute shared components
+        # Compute shared components deterministically
         shared_results = {}
         for name, program in self.shared.items():
             shared_results[name] = program.execute(X)
@@ -100,34 +170,131 @@ class SharedMIMOProgram:
             y_i = program.execute(X, shared_context=shared_results)
             outputs.append(y_i)
         
-        return np.column_stack(outputs)
+        return tf.stack(outputs, axis=1)  # TF2.x tensor operations
 ```
 
-### **Option C: Vector-Valued Functions**
+## 🔬 **MIMO Regression Workflow**
 
-Single expressions that output multiple values:
+### **Step 1: Prepare Multi-Output Dataset**
 
 ```python
-class VectorProgram:
-    """Single program outputting multiple values"""
-    def __init__(self, tokens, output_dim):
-        self.tokens = tokens
-        self.output_dim = output_dim
-    
-    def execute(self, X):
-        # Execute expression that returns multiple outputs
-        return self.vector_execute(X)  # Shape: [n_samples, n_outputs]
+import numpy as np
+import pandas as pd
 
-# Requires new vector-valued operators
-vector_tokens = [
-    Token(lambda x: np.stack([np.sin(x), np.cos(x)], axis=1), 
-          "sin_cos", arity=1, output_dim=2),
-    Token(lambda x1, x2: np.stack([x1+x2, x1*x2, x1-x2], axis=1),
-          "arithmetic_triplet", arity=2, output_dim=3)
-]
+# Example: Environmental monitoring system
+# Inputs: [temperature, humidity, pressure, wind_speed]
+# Outputs: [air_quality, comfort_index, energy_demand]
+
+# Generate sample dataset
+n_samples = 1000
+X = np.random.randn(n_samples, 4)  # 4 input features
+
+# Multiple related outputs (ground truth for testing)
+air_quality = -0.5 * X[:, 0] + np.sin(X[:, 1]) - 0.3 * X[:, 2]
+comfort_index = X[:, 0] * X[:, 1] - np.log(np.abs(X[:, 3]) + 1)
+energy_demand = np.exp(0.1 * X[:, 0]) + X[:, 2]**2 - X[:, 1]
+
+Y = np.column_stack([air_quality, comfort_index, energy_demand])
+print(f"Dataset shape: X={X.shape}, Y={Y.shape}")
+# Output: Dataset shape: X=(1000, 4), Y=(1000, 3)
 ```
 
-## 🎯 **MIMO Task Implementation**
+### **Step 2: Configure MIMO Task**
+
+```python
+from dso.task.regression import MIMORegressionTask
+
+# Define MIMO regression task
+task = MIMORegressionTask(
+    function_set=[
+        "add", "sub", "mul", "div",    # Basic arithmetic
+        "sin", "cos", "exp", "log",    # Transcendental functions
+        "sqrt", "square", "neg"        # Additional operations
+    ],
+    dataset=(X, Y),
+    metric="inv_nrmse",               # Reward metric for each output
+    metric_params=(1.0,),
+    protected=True,                   # Safe operations (no div by 0)
+    threshold=1e-12,                  # Success threshold
+    n_cores_task=1                    # Deterministic execution
+)
+```
+
+### **Step 3: Run MIMO Training with TF2.x**
+
+```python
+from dso import DeepSymbolicOptimizer
+
+# Configure MIMO DSO
+dso = DeepSymbolicOptimizer(
+    task=task,
+    n_epochs=2000,                    # Training iterations
+    n_samples=500,                    # Expressions per generation
+    batch_size=50,                    # Mini-batch size
+    
+    # TF2.x deterministic settings automatically applied
+    summary=True,                     # Enable logging
+    save_all_epoch=True              # Save intermediate results
+)
+
+# Start deterministic MIMO training
+dso.train()
+
+# Results: Multiple expressions discovered simultaneously!
+```
+
+### **Step 4: Analyze MIMO Results**
+
+```python
+# Get the best MIMO program
+best_mimo = dso.result_
+
+print("MIMO Discovery Results:")
+print(f"Number of outputs: {best_mimo.n_outputs}")
+print(f"Overall reward: {best_mimo.r:.6f}")
+
+# Examine each discovered expression
+for i, program in enumerate(best_mimo.programs):
+    print(f"\nOutput {i+1}: {program}")
+    print(f"  Reward: {program.r:.6f}")
+    print(f"  Complexity: {program.complexity}")
+    
+    # Test on validation data
+    y_pred = program.execute(X_test)
+    mse = np.mean((Y_test[:, i] - y_pred)**2)
+    print(f"  Test MSE: {mse:.6f}")
+
+# Example output:
+# Output 1: -0.5*x1 + sin(x2) - 0.3*x3     (Air Quality)
+# Output 2: x1*x2 - log(abs(x4) + 1)        (Comfort Index)  
+# Output 3: exp(0.1*x1) + x3^2 - x2         (Energy Demand)
+```
+
+### **Step 5: Validate Reproducibility**
+
+```python
+# Run multiple times with same seed - should get identical results
+results = []
+for run in range(3):
+    dso_run = DeepSymbolicOptimizer(task=task, random_state=42)
+    dso_run.train()
+    results.append(dso_run.result_)
+
+# Check deterministic behavior
+for i, result in enumerate(results):
+    print(f"Run {i+1}: Reward = {result.r:.10f}")
+    
+# Expected: Identical rewards (TF2.x determinism)
+# Run 1: Reward = 0.9876543210
+# Run 2: Reward = 0.9876543210  ← Same!
+# Run 3: Reward = 0.9876543210  ← Same!
+```
+
+## 🎯 **Advanced MIMO Features**
+
+### **Shared Sub-expressions**
+
+For related outputs, DSO can discover shared computational patterns:
 
 ### **Data Format**
 

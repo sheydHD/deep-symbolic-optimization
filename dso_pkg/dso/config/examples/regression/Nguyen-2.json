@@ -29,6 +29,10 @@
     "early_stopping": true
   },
 
+  "logging": {
+    "save_summary": true
+  },
+
   "policy_optimizer": {
     "learning_rate": 0.0025,
     "entropy_weight": 0.03,

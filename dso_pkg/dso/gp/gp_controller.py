@@ -237,7 +237,7 @@ class GPController:
         """
         t1 = time.perf_counter()
 
-        # TBD: Fix hack
+        # TODO: Fix this implementation
         self.max_length = actions.shape[1]
 
         # Reset the HOF

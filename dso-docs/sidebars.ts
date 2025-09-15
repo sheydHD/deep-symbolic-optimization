@@ -29,6 +29,7 @@ const sidebars: SidebarsConfig = {
       items: [
         'core/concept',
         'core/architecture',
+        'core/regression_features',
         'core/tokens',
         'core/training',
         'core/constraints',
