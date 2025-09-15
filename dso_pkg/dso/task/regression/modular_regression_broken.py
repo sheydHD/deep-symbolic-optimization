@@ -61,16 +61,6 @@ class ModularRegressionTask(BaseRegressionTask):
             decision_tree_threshold_set=decision_tree_threshold_set,
             poly_optimizer_params=poly_optimizer_params
         )
-            reward_noise_type=reward_noise_type,
-            threshold=threshold,
-            normalize_variance=normalize_variance,
-            protected=protected,
-            decision_tree_threshold_set=decision_tree_threshold_set,
-            const_optimizer=const_optimizer,
-            const_params=const_params,
-            poly_optimizer_params=poly_optimizer_params,
-            **kwargs
-        )
         
         # Override variance calculations for multi-output cases
         self._setup_variance_calculations()
