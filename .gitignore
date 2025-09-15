@@ -17,5 +17,50 @@ dso/dso/cyfunc*.so
 *videos
 *bsub
 dep-repos/
-.*
 !/.gitignore
+!/.cursorignore
+
+# --- Added by modernization script ---
+# Python caches & tooling
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Packaging / build artefacts
+build/
+dist/
+*.egg-info/
+.eggs/
+*.wheel
+
+# Virtual environments
+.venv
+venv
+ENV/
+
+# Test & coverage artefacts
+.coverage
+htmlcov/
+.tox/
+.pytest_cache/
+.mypy_cache/
+
+# IDE / editor configs
+.idea/
+.vscode/
+
+# OS generated files
+Thumbs.db
+.DS_Store
+
+# cursor ignore file
+.cursorignore
+
+# gemini-cli settings
+.gemini/
+
+# GitHub App credentials
+gha-creds-*.json
+
+# Cursor
+.cursorignore
