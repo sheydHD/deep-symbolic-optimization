@@ -71,7 +71,7 @@ def cmd_bench_mimo(ns: argparse.Namespace) -> None:
     os.chdir(PROJECT)
     cmd = [python_exe(), "-c", f"""
 import sys
-sys.path.insert(0, 'dso_pkg')
+sys.path.insert(0, {repr(str(DSO_PKG))})
 from dso.core_fixed import DeepSymbolicOptimizerFixed
 from dso.config import load_config
 
