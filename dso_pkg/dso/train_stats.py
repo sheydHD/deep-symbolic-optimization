@@ -94,7 +94,7 @@ class StatsLogger():
         """
         if self.output_file is not None:
             output_dir = os.path.dirname(self.output_file)
-            if output_dir:  # Only create directory if there's a directory path
+            if output_dir and output_dir != '.':  # Only create directory if there's a directory path and it's not the current directory
                 os.makedirs(output_dir, exist_ok=True)
             prefix, _ = os.path.splitext(self.output_file)
             self.all_r_output_file = f"{prefix}_all_r.npy"
