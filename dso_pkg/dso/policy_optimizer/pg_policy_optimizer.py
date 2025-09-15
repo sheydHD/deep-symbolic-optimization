@@ -1,4 +1,4 @@
-import tensorflow as tf
+from dso.tf_config import tf
 from ..policy_optimizer import PolicyOptimizer
 from ..policy import Policy
 
@@ -74,42 +74,53 @@ class PGPolicyOptimizer(PolicyOptimizer):
 
 
 
+    @tf.function
+    def _compute_batch_loss(self, baseline, sampled_batch):
+        """Compute loss and gradients using TensorFlow 2.x."""
+        # Extract rewards and convert to proper type
+        rewards = tf.cast(sampled_batch.rewards, tf.float32)
+        baseline_tf = tf.cast(baseline, tf.float32)
+        
+        # Compute advantages: (R - b)
+        advantages = rewards - baseline_tf
+        
+        # Get negative log probabilities and entropy
+        neglogp, entropy = self.policy.make_neglogp_and_entropy(sampled_batch, self.entropy_gamma)
+        
+        # Policy gradient loss: mean((R - b) * neglogp)
+        pg_loss = tf.reduce_mean(advantages * neglogp)
+        
+        # Entropy loss: -entropy_weight * mean(entropy)
+        entropy_loss = -self.entropy_weight * tf.reduce_mean(entropy)
+        
+        # Total loss: entropy_loss + pg_loss
+        total_loss = entropy_loss + pg_loss
+        
+        return total_loss, pg_loss, entropy_loss
+
     def train_step(self, baseline, sampled_batch):
-        """Modern TF2 approach with exact hybrid logic."""
-        # Increment iteration counter (like hybrid)
+        """Train the policy using policy gradient optimization."""
+        # Increment iteration counter
         if not hasattr(self, 'iterations'):
             self.iterations = tf.Variable(0, dtype=tf.int64, name="iterations")
         self.iterations.assign_add(1)
         
         with tf.GradientTape() as tape:
-            # Extract rewards (already filtered by trainer quantile logic)
-            rewards = tf.cast(sampled_batch.rewards, tf.float32)
-            baseline_tf = tf.cast(baseline, tf.float32)
-            
-            # Compute advantages: (R - b) exactly like hybrid
-            advantages = rewards - baseline_tf
-            
-            # Use make_neglogp_and_entropy to get neglogp exactly like hybrid
-            neglogp, entropy = self.policy.make_neglogp_and_entropy(sampled_batch, self.entropy_gamma)
-            
-            # Policy gradient loss: E[(R - b) * neglogp] (exactly like hybrid)
-            pg_loss = tf.reduce_mean(advantages * neglogp)
-            
-            # Entropy loss (like hybrid): entropy is already summed over sequence, just average over batch
-            entropy_loss = -self.entropy_weight * tf.reduce_mean(entropy)
-            
-            # Total loss (like hybrid: loss = entropy_loss + pg_loss)  
-            total_loss = entropy_loss + pg_loss
+            total_loss, pg_loss, entropy_loss = self._compute_batch_loss(baseline, sampled_batch)
         
-        # Apply gradients using TF2 (modernized from sess.run(train_op))
+        # Apply gradients using TensorFlow 2.x optimizers
         trainable_vars = self.policy.controller.trainable_variables
         gradients = tape.gradient(total_loss, trainable_vars)
+        
+        # Filter out None gradients (defensive programming)
         filtered_gradients = [(g, v) for g, v in zip(gradients, trainable_vars) if g is not None]
+        
         if filtered_gradients:
             self.optimizer.apply_gradients(filtered_gradients)
-            # Debug: Check if learning is happening by monitoring gradient norms
-            if hasattr(self, 'debug') and self.debug >= 2:
-                grad_norms = [tf.norm(g).numpy() for g, _ in filtered_gradients]
-                print(f"DEBUG: Gradient norms: {grad_norms[:3]}...")  # Show first 3
         
-        return None  # Hybrid returns None
+        # Return summaries for logging
+        return {
+            'total_loss': total_loss,
+            'pg_loss': pg_loss,
+            'entropy_loss': entropy_loss
+        }

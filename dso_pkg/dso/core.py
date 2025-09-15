@@ -218,7 +218,10 @@ class DeepSymbolicOptimizer():
         return checkpoint
 
     def make_policy_optimizer(self):
+        # Extract policy_optimizer_type from config
+        policy_optimizer_type = self.config_policy_optimizer.pop("policy_optimizer_type", "pg")
         policy_optimizer = make_policy_optimizer(self.policy,
+                                                 policy_optimizer_type,
                                                  **self.config_policy_optimizer)
         return policy_optimizer
 
@@ -310,3 +313,17 @@ class DeepSymbolicOptimizer():
 
     def load(self, load_path):
         self.checkpoint.load(load_path)
+    
+    def train(self):
+        """
+        Train the model until completion.
+        """
+
+        # Setup the model
+        self.setup()
+
+        # Train the model until done
+        while not self.trainer.done:
+            result = self.train_one_step()
+
+        return result

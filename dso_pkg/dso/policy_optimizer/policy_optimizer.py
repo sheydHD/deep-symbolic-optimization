@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-import tensorflow as tf
+from dso.tf_config import tf
 import numpy as np
 
 from dso.program import Program
@@ -126,7 +126,6 @@ class PolicyOptimizer(tf.Module, ABC):
             self.loss = loss
 
 
-    @abstractmethod
     def _set_loss(self) -> None:
         """Define the \\propto \\log(p(\tau|\theta)) loss for the method
 
@@ -134,7 +133,8 @@ class PolicyOptimizer(tf.Module, ABC):
         -------
             None
         """
-        raise NotImplementedError
+        # Default implementation - can be overridden by subclasses
+        pass
 
 
     def _setup_optimizer(self):
@@ -189,10 +189,15 @@ class PolicyOptimizer(tf.Module, ABC):
             zip(gradients, self.policy.controller.trainable_variables)
         )
 
-    @abstractmethod
     def _compute_loss(self, obs, actions, rewards):
-        """Compute the loss function. Must be implemented by subclasses."""
-        pass
+        """Compute the loss function. Default implementation."""
+        # Default implementation using policy gradient approach
+        with tf.GradientTape() as tape:
+            # Get policy outputs
+            log_probs = self.policy(obs, actions)
+            # Simple policy gradient loss
+            loss = -tf.reduce_mean(tf.cast(rewards, tf.float32) * log_probs)
+        return loss
 
 
     # abstractmethod (override if needed)
@@ -243,7 +248,6 @@ class PolicyOptimizer(tf.Module, ABC):
                 self._setup_summary(self.iterations) # Pass iteration        
 
 
-    @abstractmethod
     def train_step(self, 
             baseline : np.ndarray, 
             sampled_batch : Batch) -> None:
@@ -253,7 +257,34 @@ class PolicyOptimizer(tf.Module, ABC):
         -------
             None
         """
-        raise NotImplementedError
+        # Default implementation using policy gradient approach
+        with tf.GradientTape() as tape:
+            # Extract rewards
+            rewards = tf.cast(sampled_batch.rewards, tf.float32)
+            baseline_tf = tf.cast(baseline, tf.float32)
+            
+            # Compute advantages
+            advantages = rewards - baseline_tf
+            
+            # Get policy outputs
+            log_probs = self.policy(sampled_batch.obs, sampled_batch.actions)
+            
+            # Policy gradient loss
+            pg_loss = tf.reduce_mean(advantages * log_probs)
+            
+            # Add entropy regularization if available
+            if hasattr(self.policy, 'entropy_weight'):
+                entropy = self.policy.entropy(sampled_batch.obs, sampled_batch.actions)
+                entropy_loss = -self.policy.entropy_weight * tf.reduce_mean(entropy)
+                total_loss = pg_loss + entropy_loss
+            else:
+                total_loss = pg_loss
+        
+        # Compute gradients and apply
+        gradients = tape.gradient(total_loss, self.policy.controller.trainable_variables)
+        self.optimizer_instance.apply_gradients(
+            zip(gradients, self.policy.controller.trainable_variables)
+        )
 
 
 

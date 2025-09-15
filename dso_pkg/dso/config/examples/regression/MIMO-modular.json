@@ -1,0 +1,25 @@
+{
+  "task": {
+    "dataset": "MIMO-simple",
+    "task_type": "regression"
+  },
+  "training": {
+    "n_samples": 10000,
+    "early_stopping": true,
+    "n_cores_batch": 1
+  },
+  "experiment": {
+    "seed": 0,
+    "save_path": "results/mimo_modular"
+  },
+  "policy": {
+    "policy_type": "modular",
+    "max_length": 15,
+    "strategy": "independent"
+  },
+  "policy_optimizer": {
+    "policy_optimizer_type": "pg",
+    "learning_rate": 0.001,
+    "entropy_weight": 0.01
+  }
+}

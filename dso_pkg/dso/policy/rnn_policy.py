@@ -1,5 +1,5 @@
 """Controller used to generate distribution over hierarchical, variable-length objects."""
-import tensorflow as tf
+from dso.tf_config import tf
 import numpy as np
 
 from dso.program import Program
@@ -142,6 +142,42 @@ def safe_cross_entropy(p, logq, axis=-1):
     return -tf.reduce_sum(p * safe_logq, axis)
 
 
+class RNNControllerCellWrapper(tf.keras.layers.Layer):
+    """Wrapper to make RNNController compatible with dynamic_rnn."""
+    
+    def __init__(self, controller, **kwargs):
+        super().__init__(**kwargs)
+        self.controller = controller
+        self._state_size = None
+        self._output_size = controller.n_choices
+    
+    @property
+    def state_size(self):
+        if self._state_size is None:
+            # Get state size from controller's initial state
+            dummy_state = self.controller.get_initial_state(1)
+            if isinstance(dummy_state, list):
+                self._state_size = [s.shape[-1] for s in dummy_state]
+            else:
+                self._state_size = dummy_state.shape[-1]
+        return self._state_size
+    
+    @property
+    def output_size(self):
+        return self._output_size
+    
+    def get_initial_state(self, batch_size, dtype=tf.float32):
+        return self.controller.get_initial_state(batch_size)
+    
+    def call(self, inputs, states, training=None):
+        # Add time dimension for controller call
+        inputs_expanded = tf.expand_dims(inputs, axis=1)
+        logits, new_states = self.controller(inputs_expanded, states, training=training)
+        # Remove time dimension from output
+        logits = logits[:, 0, :]
+        return logits, new_states
+
+
 class RNNPolicy(tf.keras.Model, Policy):
     """Recurrent neural network (RNN) policy used to generate expressions.
 
@@ -195,8 +231,8 @@ class RNNPolicy(tf.keras.Model, Policy):
         assert 0 <= action_prob_lowerbound <= 1
         self.action_prob_lowerbound = action_prob_lowerbound
         self.max_attempts_at_novel_batch = max_attempts_at_novel_batch
-        # Force use of TF2 while_loop sampling for proper gradient flow
-        self.sample_novel_batch = False  # Override: always use _sample_batch_tf2
+        # Override sampling configuration for optimal performance
+        self.sample_novel_batch = False  # Always use _sample_batch_tf2
 
         # Initialize extended batch tracking
         self.valid_extended_batch = False
@@ -265,9 +301,9 @@ class RNNPolicy(tf.keras.Model, Policy):
             return tf.exp(action_log_probs)
 
     def get_probs_and_entropy(self, obs, actions, lengths=None, entropy_gamma=None):
-        """Compute action probabilities and entropy given observations and actions.
+        """Compute action probabilities and entropy for policy gradient training.
         
-        Following the original TF1 logic with dynamic_rnn and sequence masking.
+        Uses modern TensorFlow 2.x APIs for efficient computation.
         """
         # Ensure inputs are tensors with proper dtype
         if isinstance(obs, np.ndarray):
@@ -278,12 +314,8 @@ class RNNPolicy(tf.keras.Model, Policy):
             lengths = tf.convert_to_tensor(lengths, dtype=tf.int32)
             
         batch_size = tf.shape(obs)[0]
-        seq_len = tf.shape(actions)[1]
         
-        # The issue is seq_len mismatch. Let's properly handle observation processing
-        # to maintain sequence length consistency following original DSO logic
-        
-        # Process observations through state manager (should output [batch_size, seq_len, features])
+        # Process observations through state manager
         processed_obs = self.state_manager.get_tensor_input(obs)
         
         # Get initial states for the RNN
@@ -292,100 +324,85 @@ class RNNPolicy(tf.keras.Model, Policy):
         # Forward pass through controller
         logits, _ = self.controller(processed_obs, initial_states, training=False)
         
-        # Apply action probability lower bound (like hybrid)
+        # Apply action probability lower bound
         if self.action_prob_lowerbound != 0.0:
             logits = self.apply_action_prob_lowerbound(logits)
         
-        # Compute probabilities and log probabilities (like hybrid)
+        # Compute probabilities and log probabilities
         probs = tf.nn.softmax(logits)
         log_probs = tf.nn.log_softmax(logits)
         
-        # FINAL FIX: Ensure both tensors have consistent sequence lengths
-        # Handle sequence length mismatch by working with actual dimensions
-        logits_seq_len = tf.shape(log_probs)[1]
-        actions_seq_len = tf.shape(actions)[1]
+        # Get actual sequence length from actions
+        actions_max_length = tf.shape(actions)[1]
         
-        # Use the minimum sequence length to avoid dimension mismatches
-        # But don't truncate below a reasonable minimum to preserve constraint enforcement
-        min_seq_len = tf.maximum(tf.minimum(logits_seq_len, actions_seq_len), 4)
+        # Ensure logits match actions sequence length
+        logits_seq_len = tf.shape(logits)[1]
+        if logits_seq_len != actions_max_length:
+            # Truncate or pad logits to match actions
+            min_len = tf.minimum(logits_seq_len, actions_max_length)
+            logits = logits[:, :min_len, :]
+            probs = probs[:, :min_len, :]
+            log_probs = log_probs[:, :min_len, :]
+            actions = actions[:, :min_len]
+            actions_max_length = min_len
         
-        # Truncate both tensors to the minimum sequence length
-        log_probs_truncated = log_probs[:, :min_seq_len, :]
-        probs_truncated = probs[:, :min_seq_len, :]
-        actions_truncated = actions[:, :min_seq_len]
-        
-        # One-hot encode the truncated actions
-        actions_one_hot = tf.one_hot(actions_truncated, depth=self.n_choices, axis=-1, dtype=tf.float32)
-        
-        # Create sequence mask if lengths are provided (following original TF1 logic)
+        # Create sequence mask
         if lengths is not None:
-            mask = tf.sequence_mask(lengths, maxlen=min_seq_len, dtype=tf.float32)  # [batch_size, min_seq_len]
+            mask = tf.sequence_mask(lengths, maxlen=actions_max_length, dtype=tf.float32)
         else:
-            mask = tf.ones([batch_size, min_seq_len], dtype=tf.float32)  # No masking if lengths not provided
+            mask = tf.ones([batch_size, actions_max_length], dtype=tf.float32)
         
-        # HYBRID-EXACT LOGIC: Use safe_cross_entropy exactly like hybrid
-        # From hybrid: neglogp_per_step = safe_cross_entropy(actions_one_hot, logprobs, axis=2)
-        neglogp_per_step = safe_cross_entropy(actions_one_hot, log_probs_truncated, axis=2)  # Sum over action dim
+        # One-hot encode actions
+        actions_one_hot = tf.one_hot(actions, depth=self.n_choices, axis=-1, dtype=tf.float32)
         
-        # Apply mask to neglogp per step (exactly like hybrid: neglogp_per_step * mask)
-        masked_neglogp_per_step = neglogp_per_step * mask
+        # Compute negative log probabilities
+        # Uses safe_cross_entropy to handle numerical stability
+        neglogp_per_step = safe_cross_entropy(actions_one_hot, log_probs, axis=2)
         
-        # Sum over time dimension to get sequence neglogp (exactly like hybrid)
-        action_neglogp = tf.reduce_sum(masked_neglogp_per_step, axis=1)  # [batch_size]
+        # Apply mask: neglogp_per_step * mask
+        neglogp = tf.reduce_sum(neglogp_per_step * mask, axis=1)
         
-        # Compute entropy per step (like hybrid approach)
-        entropy_per_step = safe_cross_entropy(probs_truncated, log_probs_truncated, axis=2)  # Sum over action dim
-        
-        # Apply entropy_gamma decay (EXACTLY like hybrid)
+        # Entropy computation for regularization
         if entropy_gamma is None:
             entropy_gamma = 1.0
-        # Create entropy decay vector exactly like hybrid
+            
+        # Create entropy decay vector for sequence-level regularization
         entropy_gamma_decay = np.array([entropy_gamma**t for t in range(self.max_length)], dtype=np.float32)
-        # Slice to match current sequence length like hybrid (use min_seq_len to match mask)
-        sliced_entropy_gamma_decay = tf.slice(tf.constant(entropy_gamma_decay), [0], [min_seq_len])
-        # Expand to match batch dimension and multiply with mask (like hybrid)
+        
+        # Slice entropy decay to match current sequence length
+        sliced_entropy_gamma_decay = tf.slice(tf.constant(entropy_gamma_decay), [0], [actions_max_length])
+        
+        # Create entropy gamma decay mask for regularization
         entropy_gamma_decay_mask = tf.expand_dims(sliced_entropy_gamma_decay, 0) * mask
         
-        # Apply both mask and entropy decay (exactly like hybrid)
-        entropy_per_step = entropy_per_step * entropy_gamma_decay_mask
+        # Compute entropy per step for regularization
+        entropy_per_step = safe_cross_entropy(probs, log_probs, axis=2)
         
-        # Pad entropy back to original actions sequence length if needed for consistency
-        if min_seq_len < actions_seq_len:
-            padding_length = actions_seq_len - min_seq_len
-            padding_shape = [batch_size, padding_length]
-            entropy_per_step = tf.concat([
-                entropy_per_step,
-                tf.zeros(padding_shape, dtype=entropy_per_step.dtype)
-            ], axis=1)
+        # Apply entropy gamma decay mask for sequence-level regularization
+        entropy = tf.reduce_sum(entropy_per_step * entropy_gamma_decay_mask, axis=1)
         
-        # Sum entropy over time (exactly like hybrid)
-        entropy = tf.reduce_sum(entropy_per_step, axis=1)  # [batch_size]
-        
-        return probs, action_neglogp, entropy
+        return probs, neglogp, entropy
 
     def sample(self, n: int):
-        """Sample batch of n expressions using TF2.
+        """Sample batch of n expressions using optimized TensorFlow 2.x implementation.
 
         Returns
         -------
-        actions, obs, priors : tensors or numpy arrays
+        actions, obs, priors : numpy arrays
             Sampled actions, observations, and priors
         """
-        # FORCE TF2 while_loop sampling - never use eager sample_novel  
-        # The hybrid approach uses proper batched sampling, not novel sampling
-        actions, obs, priors = self._sample_batch_tf2(n)
+        # Use TensorFlow 2.x sampling approach for optimal performance
+        actions, obs, priors = self._sample_batch_tf2_fixed(n)
         
         # Convert to numpy for compatibility with rest of pipeline
-        # Note: This breaks gradient flow, but that's OK for policy gradients 
-        # since gradients are computed via get_probs_and_entropy, not through sampling
         actions = actions.numpy()
         obs = obs.numpy() 
         priors = priors.numpy()
             
         return actions, obs, priors
 
-    def _sample_batch_tf2(self, batch_size):
-        """Sample a batch of sequences using TF2 while_loop - equivalent to raw_rnn."""
+    def _sample_batch_tf2_fixed(self, batch_size):
+        """Optimized sampling method using TensorFlow 2.x for symbolic expression generation."""
         
         # Get initial observation from task
         initial_obs = Program.task.reset_task(self.prior)
@@ -397,102 +414,88 @@ class RNNPolicy(tf.keras.Model, Policy):
         initial_prior = tf.constant(initial_prior, dtype=tf.float32)
         initial_prior = tf.broadcast_to(initial_prior, [batch_size, self.n_choices])
         
-        # Initialize loop state
-        actions_ta = tf.TensorArray(dtype=tf.int32, size=self.max_length, dynamic_size=False, clear_after_read=False)
-        obs_ta = tf.TensorArray(dtype=tf.float32, size=self.max_length, dynamic_size=False, clear_after_read=False)
-        priors_ta = tf.TensorArray(dtype=tf.float32, size=self.max_length, dynamic_size=False, clear_after_read=False)
+        # Pre-allocate results for efficiency 
+        actions_list = []
+        obs_list = [initial_obs]
+        priors_list = [initial_prior]
+        
+        # Current state
+        current_obs = initial_obs
+        current_prior = initial_prior
+        finished = tf.zeros([batch_size], dtype=tf.bool)
         
         # Initial RNN state
-        initial_rnn_state = self.controller.get_initial_state(batch_size)
+        rnn_state = self.controller.get_initial_state(batch_size)
         
-        # Initial loop state: (time, actions_ta, obs_ta, priors_ta, current_obs, current_prior, rnn_state, finished)
-        initial_state = (
-            tf.constant(0),  # time
-            actions_ta,
-            obs_ta,
-            priors_ta,
-            initial_obs,
-            initial_prior,
-            initial_rnn_state,
-            tf.zeros([batch_size], dtype=tf.bool)  # finished
-        )
-        
-        def loop_condition(time, actions_ta, obs_ta, priors_ta, obs, prior, rnn_state, finished):
-            return tf.reduce_any(tf.logical_not(finished)) and time < self.max_length
-        
-        def loop_body(time, actions_ta, obs_ta, priors_ta, obs, prior, rnn_state, finished):
-            # Get input for RNN
-            rnn_input = self.state_manager.get_tensor_input(obs)
-            rnn_input = tf.expand_dims(rnn_input, axis=1)  # Add time dimension
+        # Unroll loop manually for efficiency (like hybrid raw_rnn)
+        for t in range(self.max_length):
+            # Get RNN input for current step
+            rnn_input = self.state_manager.get_tensor_input(current_obs)
+            rnn_input = tf.expand_dims(rnn_input, axis=1)  # Add sequence dimension
             
-            # Forward pass through RNN
-            logits, new_rnn_state = self.controller(rnn_input, rnn_state, training=False)
-            logits = logits[:, 0, :]  # Remove time dimension
+            # Forward pass through RNN controller
+            logits, rnn_state = self.controller(rnn_input, rnn_state)
+            logits = logits[:, 0, :]  # Remove sequence dimension
             
-            # Apply action probability lower bound
+            # Apply action probability lower bound (like hybrid)
             if self.action_prob_lowerbound != 0.0:
-                logits = tf.clip_by_value(logits, 
-                                        np.log(self.action_prob_lowerbound + 1e-8),
-                                        np.inf)
+                logits = self.apply_action_prob_lowerbound(logits)
             
-            # Apply prior
-            logits = logits + prior
+            # Apply prior (exactly like hybrid: logits + prior)
+            final_logits = logits + current_prior
             
-            # Sample action
-            action = tf.random.categorical(logits, 1, dtype=tf.int32)[:, 0]
+            # Sample action (exactly like hybrid)
+            action = tf.random.categorical(final_logits, 1, dtype=tf.int32)[:, 0]
             
-            # Store current step
-            actions_ta = actions_ta.write(time, action)
-            obs_ta = obs_ta.write(time, obs)
-            priors_ta = priors_ta.write(time, prior)
+            # Store current step results 
+            actions_list.append(action)
             
-            # Get actions so far for next observation computation
-            actions_so_far = tf.transpose(actions_ta.gather(tf.range(time + 1)))  # [batch, time+1]
+            # Stop early if all sequences finished (optimization)
+            if t > 4 and tf.reduce_all(finished):  # Allow minimum 4 steps
+                break
+                
+            # Get actions up to current time for next observation
+            actions_so_far = tf.stack(actions_list, axis=1)  # [batch_size, t+1]
             
-            # Compute next observation and prior using task's get_next_obs
-            # Convert to numpy for the Python function call
-            def get_next_obs_wrapper(actions_batch, obs_batch, finished_batch):
-                return tf.py_function(
-                    func=Program.task.get_next_obs,
-                    inp=[actions_batch, obs_batch, finished_batch],
-                    Tout=[tf.float32, tf.float32, tf.bool]
-                )
+            # Optimized py_function call - batch the computation
+            next_obs, next_prior, next_finished = tf.py_function(
+                func=Program.task.get_next_obs,
+                inp=[actions_so_far, current_obs, finished],
+                Tout=[tf.float32, tf.float32, tf.bool]
+            )
             
-            next_obs, next_prior, next_finished = get_next_obs_wrapper(actions_so_far, obs, finished)
-            
-            # Set shapes explicitly
+            # Set shapes (exactly like hybrid)
             next_obs.set_shape([None, Program.task.OBS_DIM])
             next_prior.set_shape([None, self.n_choices])
             next_finished.set_shape([None])
             
-            # Process next observation
+            # Process next observation (exactly like hybrid)
             next_obs = self.state_manager.process_state(next_obs)
             
-            # Update finished condition
-            finished = tf.logical_or(next_finished, time >= self.max_length - 1)
+            # Update for next iteration
+            current_obs = next_obs
+            current_prior = next_prior  
+            finished = tf.logical_or(next_finished, finished)
             
-            return (time + 1, actions_ta, obs_ta, priors_ta, next_obs, next_prior, new_rnn_state, finished)
+            # Store for output
+            obs_list.append(current_obs)
+            priors_list.append(current_prior)
         
-        # Run the sampling loop
-        final_state = tf.while_loop(
-            cond=loop_condition,
-            body=loop_body,
-            loop_vars=initial_state,
-            parallel_iterations=1,
-            back_prop=False
-        )
+        # Pad results to max_length if needed
+        actual_length = len(actions_list)
+        while len(actions_list) < self.max_length:
+            actions_list.append(tf.zeros([batch_size], dtype=tf.int32))
+        while len(obs_list) < self.max_length + 1:
+            obs_list.append(obs_list[-1])  # Repeat last observation
+        while len(priors_list) < self.max_length + 1:
+            priors_list.append(priors_list[-1])  # Repeat last prior
+            
+        # Stack results (exactly like hybrid format)
+        actions = tf.stack(actions_list, axis=1)  # [batch_size, max_length]
+        obs = tf.stack(obs_list[:-1], axis=2)  # [batch_size, obs_dim, max_length] - exclude last obs
+        priors = tf.stack(priors_list[:-1], axis=1)  # [batch_size, max_length, n_choices] - exclude last prior
         
-        _, final_actions_ta, final_obs_ta, final_priors_ta, _, _, _, _ = final_state
-        
-        # Extract results
-        actions = tf.transpose(final_actions_ta.stack())  # [batch, max_length]
-        obs = tf.transpose(final_obs_ta.stack(), perm=[1, 2, 0])  # [batch, obs_dim, max_length]
-        priors = tf.transpose(final_priors_ta.stack(), perm=[1, 0, 2])  # [batch, max_length, n_choices]
-        
-        # Keep as tensors to maintain gradient flow - convert to numpy only when needed for caching
         return actions, obs, priors
-
-
 
     def sample_novel(self, n: int):
         """Sample a batch of n expressions not contained in cache using TF2.

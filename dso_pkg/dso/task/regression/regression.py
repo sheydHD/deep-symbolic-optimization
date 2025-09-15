@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import os
 
 from dso.task import HierarchicalTask
 from dso.library import Library, Polynomial
@@ -107,9 +108,40 @@ class RegressionTask(HierarchicalTask):
 
         # Case 3: Dataset filename
         elif isinstance(dataset, str) and dataset.endswith("csv"):
-            df = pd.read_csv(dataset, header=None) # Assuming data file does not have header rows
-            self.X_train = df.values[:, :-1]
-            self.y_train = df.values[:, -1]
+            # Check if file exists first
+            if not os.path.exists(dataset):
+                raise FileNotFoundError(f"Dataset file not found: {dataset}")
+                
+            # Try to read with headers first, fallback to no headers
+            try:
+                df = pd.read_csv(dataset)
+                # Check if we have column names that suggest input/output structure
+                if any(col.startswith(('x', 'X')) for col in df.columns) and any(col.startswith(('y', 'Y')) for col in df.columns):
+                    # Auto-detect input/output columns
+                    input_cols = [col for col in df.columns if col.startswith(('x', 'X'))]
+                    output_cols = [col for col in df.columns if col.startswith(('y', 'Y'))]
+                    X_data = df[input_cols].values.astype(np.float64)
+                    y_data = df[output_cols].values.astype(np.float64)
+                    # If multiple outputs, keep as 2D; if single output, flatten
+                    if y_data.shape[1] == 1:
+                        y_data = y_data.flatten()
+                else:
+                    # No clear input/output structure, assume last column is output
+                    df = df.apply(pd.to_numeric, errors='coerce')
+                    X_data = df.values[:, :-1].astype(np.float64)
+                    y_data = df.values[:, -1].astype(np.float64)
+            except Exception as e:
+                # Fallback to original behavior (no headers)
+                try:
+                    df = pd.read_csv(dataset, header=None)
+                    df = df.apply(pd.to_numeric, errors='coerce')
+                    X_data = df.values[:, :-1].astype(np.float64)
+                    y_data = df.values[:, -1].astype(np.float64)
+                except Exception as e2:
+                    raise ValueError(f"Failed to load CSV dataset '{dataset}': {e2}")
+            
+            self.X_train = X_data
+            self.y_train = y_data
             self.name = dataset.replace("/", "_")[:-4]
 
         # Case 4: sklearn-like (X, y) data

@@ -1,6 +1,7 @@
 """Model architecture for LanguageModel using TF2"""
 
-import tensorflow as tf
+# Import TensorFlow with optimized configuration
+from dso.tf_config import tf
 
 def sequence_loss(logits, targets, weights,
                   average_across_timesteps=True, average_across_batch=True,

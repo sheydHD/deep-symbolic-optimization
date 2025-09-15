@@ -1,6 +1,6 @@
 # DSO Documentation
 
-Welcome to the comprehensive documentation for **Deep Symbolic Optimization (DSO)** - a state-of-the-art framework for discovering interpretable mathematical expressions using deep reinforcement learning.
+Welcome to the documentation for **Deep Symbolic Optimization (DSO)** - a state-of-the-art framework for discovering interpretable mathematical expressions using deep reinforcement learning.
 
 ## 📖 Documentation Overview
 

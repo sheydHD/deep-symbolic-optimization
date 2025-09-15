@@ -145,7 +145,7 @@ class HierarchicalStateManager(StateManager):
         Calculates the input dimension based on the enabled observations.
         This replicates the logic from the original TF1.x's get_tensor_input.
         
-        CRITICAL: In TF2, the extended batch can add additional features.
+        NOTE: In TensorFlow 2.x, the extended batch can add additional features.
         We use a conservative estimate to handle worst-case scenarios.
         """
         base_dim = 0

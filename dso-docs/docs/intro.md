@@ -17,7 +17,10 @@ sidebar_position: 1
 ### 🧠 **AI-Driven Discovery**
 DSO uses neural networks to intelligently search the space of mathematical expressions, learning to generate formulas that best fit your data.
 
-### 📊 **Interpretable Results**
+### 📊 **Multi-Output Support** 
+Complete support for MIMO (Multiple Input Multiple Output) regression with automatic data variant detection for SISO, MISO, SIMO, and MIMO problems.
+
+### 🔍 **Interpretable Results**
 Get explicit mathematical equations instead of black-box models - perfect for scientific research and engineering applications.
 
 ### 🏆 **Proven Performance**
@@ -33,7 +36,22 @@ Get explicit mathematical equations instead of black-box models - perfect for sc
 
 ## How DSO Works
 
-DSO employs a sophisticated four-step process to discover mathematical expressions:
+DSO employs a sophisticated reinforcement learning process to discover mathematical expressions:
+
+```mermaid
+graph TD
+    A[Input Data] --> B[RNN Policy Network]
+    B --> C[Generate Expression Candidates]
+    C --> D[Execute & Evaluate Programs]
+    D --> E[Compute Rewards]
+    E --> F[Update Policy via REINFORCE]
+    F --> B
+    D --> G[Best Expression Found]
+    
+    style A fill:#e1f5fe
+    style G fill:#c8e6c9
+    style B fill:#fff3e0
+```
 
 ### 1. **Expression Generation**
 A neural network (RNN policy) generates candidate mathematical expressions as sequences of tokens (operators, variables, constants).
@@ -46,6 +64,28 @@ The neural network learns from the fitness scores using the REINFORCE algorithm,
 
 ### 4. **Iterative Refinement**
 This process repeats for thousands of iterations until optimal mathematical formulas are discovered.
+
+## Data Variant Support
+
+DSO now supports multiple data variants with automatic detection:
+
+```mermaid
+graph LR
+    A[Input Data] --> B{Auto-Detect Variant}
+    B --> C[SISO: Single Input/Output]
+    B --> D[MISO: Multi Input/Single Output]
+    B --> E[SIMO: Single Input/Multi Output]
+    B --> F[MIMO: Multi Input/Multi Output]
+    
+    C --> G[Standard DSO]
+    D --> G
+    E --> H[Multi-Output DSO]
+    F --> H
+    
+    style A fill:#e1f5fe
+    style G fill:#c8e6c9
+    style H fill:#f8bbd9
+```
 
 ## Applications
 
@@ -105,23 +145,23 @@ Get started with DSO in just three commands:
 ```bash
 # 1. Clone and setup
 git clone https://github.com/your-org/dso.git && cd dso
-./main.sh  # Press '1' when prompted
+./main.sh modern setup  # Automated setup
 
 # 2. Activate environment  
 source .venv/bin/activate
 
 # 3. Run your first experiment
-python -m dso.run dso/config/config_regression.json --b Nguyen-7
+python -m dso.run dso_pkg/dso/config/examples/regression/Nguyen-2.json
 
-or use 
-
-./main.sh  # Press '3' when prompted
+# Or use interactive menu
+python tools/python/run.py
 ```
 
 ## Simple Example
 
-Here's how to use DSO to discover a mathematical formula:
+Here's how to use DSO to discover mathematical formulas:
 
+### Basic Sklearn-style API
 ```python
 from dso import DeepSymbolicRegressor
 import numpy as np
@@ -131,10 +171,7 @@ X = np.random.random((100, 2))
 y = np.sin(X[:,0]) + X[:,1] ** 2  # True formula: sin(x₀) + x₁²
 
 # Train DSO to discover the formula
-model = DeepSymbolicRegressor(
-    function_set=["add", "mul", "sin", "pow"],
-    max_complexity=20
-)
+model = DeepSymbolicRegressor()
 model.fit(X, y)
 
 # View the discovered expression
@@ -143,6 +180,45 @@ print("Discovered formula:", model.program_.pretty())
 
 # Use for prediction
 y_pred = model.predict(X_test)
+```
+
+### Direct DSO API
+```python
+from dso import DeepSymbolicOptimizer
+from dso.config import load_config
+
+# Load configuration
+config = load_config("dso_pkg/dso/config/config_regression.json")
+config["task"]["dataset"] = "Nguyen-2"  # x^4 + x^3 + x^2 + x
+
+# Create and train model
+model = DeepSymbolicOptimizer(config)
+result = model.train()
+
+print("Best expression:", result["expression"])
+print("Reward:", result["r"])
+```
+
+### MIMO (Multi-Output) Example
+```python
+from dso.unified_dso import UnifiedDSO
+import numpy as np
+
+# Multi-output data: 2 inputs → 3 outputs
+X = np.random.random((100, 2))
+y = np.column_stack([
+    X[:,0] * X[:,1],        # Output 1: x₀ * x₁
+    np.sin(X[:,0]),         # Output 2: sin(x₀)
+    X[:,0] + X[:,1]         # Output 3: x₀ + x₁
+])
+
+# Unified DSO automatically detects MIMO
+dso = UnifiedDSO()
+results = dso.fit((X, y))
+
+print("MIMO expressions found:")
+for i, expr in enumerate(results["expressions"]):
+    print(f"Output {i+1}: {expr}")
 ```
 
 ## Documentation Structure
@@ -156,6 +232,7 @@ This documentation is organized into four main sections:
 ### 🧠 **Core Concepts** 
 - **[Fundamental Concepts](core/concept)** - Understanding symbolic regression and reinforcement learning
 - **[System Architecture](core/architecture)** - How DSO components work together
+- **[Regression Features](core/regression_features)** - Comprehensive regression capabilities and MIMO support
 - **[Token System](core/tokens)** - Mathematical building blocks and operators
 - **[Training Process](core/training)** - Neural network training and optimization
 - **[Constraints & Priors](core/constraints)** - Incorporating domain knowledge

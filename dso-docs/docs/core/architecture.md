@@ -1,24 +1,158 @@
 # DSO Architecture & Core Concepts
 
-> Version: 1.0 • Last updated: 2025-09-01
+> Version: 2.0 • Last updated: 2025-09-15
 
-This document explains the fundamental architecture and concepts of the Deep Symbolic Optimization framework.
+This document explains the fundamental architecture and concepts of the Deep Symbolic Optimization framework, featuring our **modular architecture** with automatic data variant detection and multi-output regression (MIMO) capabilities.
 
 ## 🏗️ **Core Architecture**
 
-DSO consists of four main components that work together to discover mathematical expressions:
+DSO consists of four main components that work together to discover mathematical expressions with automatic data variant detection:
 
+```mermaid
+graph TD
+    A[Data Analysis] --> B[Task Definition]
+    B --> C[Function Library]
+    C --> D[RNN Policy Network]
+    D --> E[Program Generation]
+    E --> F[Modular Execution]
+    F --> G[Reward Calculation]
+    G --> H[Policy Update]
+    H --> D
+    
+    F --> I[Best Programs]
+    I --> J[Mathematical Expressions]
+    
+    style A fill:#e1f5fe
+    style D fill:#fff3e0
+    style I fill:#c8e6c9
+    style J fill:#c8e6c9
 ```
-Config → Task → Library → Policy → Programs → Evaluation → Rewards → Training
+
+### **Component Interactions**
+
+```mermaid
+graph LR
+    A[UnifiedDSO] --> B[ModularRegressionTask]
+    A --> C[Policy Network] 
+    A --> D[Library]
+    
+    C --> E[Expression Generation]
+    B --> F[Multi-Variant Execution]
+    D --> G[Token Vocabulary]
+    
+    E --> H[Mathematical Expressions]
+    F --> I[Fitness Scores]
+    G --> J[Building Blocks]
+    
+    style A fill:#e1f5fe
+    style H fill:#c8e6c9
+    style I fill:#f8bbd9
+    style J fill:#fff3e0
 ```
+
+## 🧩 **Modular Architecture Benefits**
+
+### **Modern Design Principles**
+
+DSO's modular architecture provides significant improvements over monolithic approaches:
+
+```python
+# Automatic Data Variant Detection (data_types.py)
+def auto_detect_data_structure(X, y):
+    """Automatically detect data variant and configure execution"""
+    
+    # Analyze input/output dimensions
+    data_shape = DataShape(X, y)
+    variant = data_shape.variant  # SISO/MISO/SIMO/MIMO
+    
+    # Configure appropriate execution path
+    if variant == DataVariant.VECTOR_BOTH:  # MIMO
+        return configure_mimo_execution(data_shape)
+    elif variant == DataVariant.VECTOR_INPUT:  # MISO
+        return configure_miso_execution(data_shape)
+    else:
+        return configure_default_execution(data_shape)
+```
+
+### **Key Architectural Components**
+
+#### **1. Unified DSO Interface**
+```python
+class UnifiedDSO:
+    """Main entry point with automatic variant detection"""
+    
+    def fit(self, dataset):
+        # Step 1: Create modular task (handles data analysis)
+        self.task = ModularRegressionTask(dataset=dataset)
+        
+        # Step 2: Extract data shape and configure execution
+        self.data_shape = self.task.data_shape
+        variant = self.data_shape.variant  # Automatic detection
+        
+        # Step 3: Configure appropriate components
+        self.policy = create_modular_policy(variant)
+        self.program_class = create_program_for_variant(variant)
+        
+        # Step 4: Train with variant-specific optimizations
+        return self.train()
+```
+
+#### **2. Modular Data Handling**
+```python
+class DataShape:
+    """Automatic data structure analysis"""
+    
+    def __init__(self, X, y):
+        self.X, self.y = X, y
+        self.variant = self._detect_variant()  # Auto-detect SISO/MISO/SIMO/MIMO
+        self.input_dims = self._extract_input_dims()
+        self.output_dims = self._extract_output_dims()
+        
+        # Convenience flags for different execution paths
+        self.is_mimo = self.variant == DataVariant.VECTOR_BOTH
+        self.n_inputs = self.input_dims['n_features']
+        self.n_outputs = self.output_dims['n_outputs']
+```
+
+#### **3. Variant-Specific Program Execution**
+```python
+class ModularProgram:
+    """Program with automatic execution variant selection"""
+    
+    def execute(self, X):
+        """Execute with appropriate variant handler"""
+        if self.executor is None:
+            self._configure_executor()  # Auto-configure based on data shape
+            
+        return self.executor.execute(self, X)
+    
+    def _configure_executor(self):
+        """Select executor based on data variant"""
+        if self.data_shape.variant == DataVariant.VECTOR_BOTH:
+            self.executor = MultiOutputExecutor(self.data_shape.n_outputs)
+        elif self.data_shape.variant == DataVariant.VECTOR_INPUT:
+            self.executor = VectorExecutor()
+        else:
+            self.executor = ScalarExecutor()
+```
+
+### **Architecture Benefits**
+
+| Feature | Traditional DSO | Modular DSO | Improvement |
+|---------|----------------|-------------|-------------|
+| **Data Support** | MISO only | SISO/MISO/SIMO/MIMO | Universal coverage |
+| **Configuration** | Manual setup | Auto-detection | Zero configuration |
+| **Extensibility** | Monolithic | Modular components | Easy customization |
+| **Multi-Output** | Not supported | Native MIMO | Multiple expressions |
+| **Execution** | Single path | Variant-optimized | Performance matched to data |
 
 ### **Main Components**
 
-- **`DeepSymbolicOptimizer`** → Main orchestrator that coordinates all components
-- **`RegressionTask`** → Problem definition and evaluation framework
-- **`RNNPolicy`** → Neural network that generates mathematical expressions
-- **`Program`** → Represents and executes mathematical expressions
-- **`Library`** → Collection of available mathematical operations (tokens)
+- **`UnifiedDSO`** → Main entry point with automatic variant detection
+- **`ModularRegressionTask`** → Data analysis and variant configuration
+- **`ModularProgram`** → Expressions with variant-specific execution
+- **`MultiProgram`** → Container for multi-output expression sets
+- **`DataShape`** → Automatic data structure analysis and configuration
 
 ## 🧩 **Tokens - The Building Blocks**
 
@@ -87,23 +221,40 @@ Tokens are processed using a stack-based approach:
 2. When operator has all required inputs, execute and push result
 3. Final result is the expression output
 
-## 📊 **Dimensionality & Data Flow**
+## 📊 **Data Variant Support & Flow**
 
-### **Current MISO (Multiple Input Single Output)**
+### **SISO (Single Input Single Output)**
 ```
-Input Data: X [n_samples, n_features]
-Example: [[0.5, 0.3, 0.8], [0.1, 0.9, 0.2], ...]
-
-Expression: sin(x1) + x2*x3
-
-Output: y [n_samples]  
-Example: [0.847, 1.234, ...]
+Input: X [n_samples, 1] - Single feature
+Output: y [n_samples] - Single target
+Example: f(x) = x^2 + 1
 ```
 
-### **Tensor Operations**
-- All operations are vectorized using NumPy
+### **MISO (Multiple Input Single Output)**
+```
+Input: X [n_samples, n_features] - Multiple features
+Output: y [n_samples] - Single target
+Example: f(x1,x2,x3) = sin(x1) + x2*x3
+```
+
+### **SIMO (Single Input Multiple Output)**
+```
+Input: X [n_samples, 1] - Single feature
+Output: y [n_samples, n_outputs] - Multiple targets
+Example: [f1(x), f2(x), f3(x)] = [x^2, sin(x), exp(x)]
+```
+
+### **MIMO (Multiple Input Multiple Output)**
+```
+Input: X [n_samples, n_features] - Multiple features
+Output: y [n_samples, n_outputs] - Multiple targets
+Example: [f1(x1,x2), f2(x1,x2)] = [x1*x2, sin(x1)+x2]
+```
+
+### **Execution Operations**
+- All operations vectorized using NumPy with Cython acceleration
 - `execute()` processes entire datasets simultaneously
-- Efficient GPU acceleration through Cython
+- Variant-specific optimizations for different data structures
 
 ## 🎯 **Policy & Training**
 
@@ -220,4 +371,45 @@ def reward_function(program):
 - GPU acceleration for large datasets
 - Efficient memory management
 
-This architecture enables DSO to efficiently explore the space of mathematical expressions while maintaining interpretability and performance.
+## 🔄 **Multi-Output Program Architecture**
+
+### **MIMO Expression Handling**
+
+For multi-output problems, DSO can use different strategies:
+
+#### **Independent Expressions (Current Implementation)**
+```python
+# Each output has its own expression
+expressions = [
+    "x1 * x2",      # Output 1
+    "sin(x1)",      # Output 2  
+    "x1 + x2"       # Output 3
+]
+```
+
+#### **Multi-Program Container**
+```python
+class MultiProgram:
+    """Container for multiple expressions in MIMO"""
+    
+    def __init__(self, programs):
+        self.programs = programs  # List of Program objects
+        
+    def execute(self, X):
+        """Execute all programs and stack outputs"""
+        outputs = []
+        for program in self.programs:
+            output = program.execute(X)
+            outputs.append(output)
+        return np.column_stack(outputs)
+```
+
+### **Future Extensions**
+
+The modular architecture enables future extensions:
+- **Shared sub-expressions**: Common terms across outputs
+- **Hierarchical expressions**: Nested expression dependencies  
+- **Tensor operations**: Higher-dimensional data support
+- **Symbolic constraints**: Physical law enforcement
+
+This modular architecture enables DSO to efficiently explore the space of mathematical expressions across diverse data structures while maintaining interpretability and performance.

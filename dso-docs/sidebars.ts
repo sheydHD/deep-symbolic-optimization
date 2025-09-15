@@ -29,6 +29,7 @@ const sidebars: SidebarsConfig = {
       items: [
         'core/concept',
         'core/architecture',
+        'core/regression_features',
         'core/tokens',
         'core/training',
         'core/constraints',
@@ -39,6 +40,7 @@ const sidebars: SidebarsConfig = {
       label: 'Advanced Topics',
       items: [
         'core/mimo',
+        'core/mimo_implementation',
         'core/advanced',
       ],
     },

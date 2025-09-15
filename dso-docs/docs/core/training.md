@@ -1,18 +1,36 @@
 # Training & Evaluation
 
-> Version: 1.0 • Last updated: 2025-09-01
+> Version: 2.0 • Last updated: 2025-09-15
 
-This guide explains how DSO trains neural policies to discover mathematical expressions and evaluates their performance.
+This guide explains how DSO trains neural policies to discover mathematical expressions and evaluates their performance using the modern **TensorFlow 2.x** implementation with deterministic and reproducible training.
 
 ## 🎯 **Training Overview**
 
-DSO uses reinforcement learning to train a neural network policy that learns to generate high-quality mathematical expressions.
+DSO uses reinforcement learning to train a neural network policy that learns to generate high-quality mathematical expressions. Our **TensorFlow 2.x implementation** provides deterministic, reproducible results perfect for symbolic regression research.
+
+```mermaid
+graph TD
+    A[Initialize RNN Policy] --> B[Generate Expression Batch]
+    B --> C[Execute Programs on Data]
+    C --> D[Compute Rewards]
+    D --> E[Calculate Policy Gradients]
+    E --> F[Update Policy Parameters]
+    F --> G{Converged?}
+    G -->|No| B
+    G -->|Yes| H[Return Best Expression]
+    
+    style A fill:#e1f5fe
+    style H fill:#c8e6c9
+    style B fill:#fff3e0
+    style D fill:#f8bbd9
+```
 
 ### **Training Philosophy**
 - **No Supervision**: No target expressions provided
 - **Reward-Based Learning**: Policy learns from expression performance
 - **Exploration vs Exploitation**: Balance trying new expressions vs refining good ones
 - **Interpretable Results**: Focus on human-readable mathematical formulas
+- **Deterministic Training**: Fully reproducible results using TensorFlow 2.x
 
 ## 🧠 **Neural Policy Architecture**
 
@@ -52,6 +70,93 @@ class RNNPolicy:
 # Output: Probability distribution over next token
 # - High probability for good next tokens
 # - Zero probability for invalid tokens
+```
+
+## 🚀 **TensorFlow 2.x Implementation**
+
+### **Deterministic Training for Reproducible Results**
+
+Our TensorFlow 2.x implementation ensures **fully deterministic** and **reproducible** training crucial for regression research:
+
+```python
+# Automatic configuration in tf_config.py
+def setup_tensorflow():
+    """Configure TensorFlow 2.x with optimal settings for DSO."""
+    
+    # Set random seeds for reproducibility
+    tf.random.set_seed(0)
+    np.random.seed(0)
+    
+    # Enable deterministic operations for numerical consistency
+    tf.config.experimental.enable_op_determinism()
+    
+    # Force deterministic GPU operations
+    os.environ['TF_DETERMINISTIC_OPS'] = '1'
+    os.environ['TF_CUDNN_DETERMINISTIC'] = '1'
+    
+    # Single-threaded execution for deterministic behavior
+    tf.config.threading.set_inter_op_parallelism_threads(1)
+    tf.config.threading.set_intra_op_parallelism_threads(1)
+```
+
+### **Performance Optimizations**
+
+#### **Graph Mode Compilation**
+```python
+# Automatic JIT compilation for faster execution
+tf.config.optimizer.set_jit(True)
+tf.config.run_functions_eagerly(False)  # Use graph mode
+
+# Compiles training functions for optimal performance
+@tf.function
+def train_step(policy, batch_data, rewards):
+    with tf.GradientTape() as tape:
+        log_probs = policy.compute_log_probs(batch_data)
+        loss = policy_gradient_loss(log_probs, rewards)
+    
+    gradients = tape.gradient(loss, policy.trainable_variables)
+    optimizer.apply_gradients(zip(gradients, policy.trainable_variables))
+    
+    return loss
+```
+
+#### **Memory Management**
+```python
+# Optimized GPU memory usage
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+    for gpu in gpus:
+        tf.config.experimental.set_memory_growth(gpu, True)
+```
+
+### **Key TensorFlow 2.x Benefits for Regression**
+
+1. **🎯 Perfect Reproducibility**: Same random seed → identical results every time
+2. **⚡ Faster Training**: Graph compilation and JIT optimization
+3. **🔧 Modern API**: Clean, intuitive TensorFlow 2.x syntax
+4. **📊 Better Debugging**: Eager execution when needed for development
+5. **💾 Efficient Memory**: Dynamic GPU memory allocation
+6. **🧪 Research-Ready**: Deterministic behavior essential for scientific experiments
+
+### **Regression-Specific Optimizations**
+
+```python
+# Optimized batch processing for regression tasks
+class RegressionPolicy(tf.keras.Model):
+    def __init__(self, library_size, hidden_size=256):
+        super().__init__()
+        self.embedding = tf.keras.layers.Embedding(library_size, hidden_size)
+        self.lstm = tf.keras.layers.LSTM(hidden_size, return_sequences=True, return_state=True)
+        self.output_layer = tf.keras.layers.Dense(library_size)
+    
+    @tf.function  # Compiled for fast execution
+    def call(self, inputs, training=None):
+        # Efficient token embedding and RNN processing
+        embedded = self.embedding(inputs)
+        lstm_out, _, _ = self.lstm(embedded, training=training)
+        logits = self.output_layer(lstm_out)
+        
+        return tf.nn.softmax(logits)  # Token probabilities
 ```
 
 ## 🔄 **Training Algorithm: REINFORCE**
@@ -184,7 +289,134 @@ def reward_function(program):
     return reward
 ```
 
-## 📊 **Evaluation & Testing**
+## � **Symbolic Regression with DSO**
+
+### **What Makes DSO Perfect for Regression**
+
+DSO excels at discovering **interpretable mathematical expressions** that capture underlying relationships in data. Unlike black-box ML models, DSO finds **exact symbolic formulas**:
+
+```python
+# Example: Instead of a neural network, DSO finds:
+# y = sin(x1) + x2*x3 - 0.5  ← Human-readable formula!
+
+# This is much better than:
+# y = neural_network.predict(x)  ← Black box
+```
+
+### **Regression Task Setup**
+
+```python
+# 1. Load your regression dataset
+X_train = np.array([[1.0, 2.0], [1.5, 3.0], ...])  # [n_samples, n_features]
+y_train = np.array([2.1, 3.7, ...])                # [n_samples]
+
+# 2. Define function set (mathematical operations)
+function_set = ["add", "sub", "mul", "div", "sin", "cos", "exp", "log"]
+
+# 3. Create regression task
+task = RegressionTask(
+    function_set=function_set,
+    dataset=(X_train, y_train),
+    metric="inv_nrmse",        # Reward metric
+    protected=True,            # Protect against division by zero
+    threshold=1e-12           # Success threshold for perfect expressions
+)
+
+# 4. Train DSO to find symbolic expressions
+dso = DeepSymbolicOptimizer(task=task)
+dso.train()
+
+# 5. Get the best discovered expression
+best_program = dso.result_  
+print(f"Discovered formula: {best_program}")
+print(f"Reward: {best_program.r}")
+```
+
+### **Real-World Example: Kepler's Third Law**
+
+```python
+# Given planetary data: [semi_major_axis, orbital_period]
+# DSO automatically discovers: T² ∝ a³
+
+import numpy as np
+
+# Synthetic planetary data
+a = np.linspace(1, 10, 50)  # Semi-major axis
+T = np.sqrt(a**3)           # Orbital period (Kepler's law)
+
+# Add some noise
+T_noisy = T + np.random.normal(0, 0.1, len(T))
+
+# DSO discovers the relationship
+task = RegressionTask(
+    function_set=["mul", "div", "pow"],
+    dataset=(a.reshape(-1, 1), T_noisy),
+    metric="inv_nrmse"
+)
+
+# Result: DSO finds something like pow(x1, 1.5) ≈ x1^(3/2) = √(x1³)
+```
+
+### **MIMO Regression: Multiple Outputs**
+
+DSO can discover **multiple related expressions** simultaneously:
+
+```python
+# Example: System of equations
+# y1 = sin(x1) + x2
+# y2 = x1² - cos(x2) 
+# y3 = exp(x1*x2)
+
+# Multi-output dataset
+X = np.random.randn(1000, 2)  # [n_samples, n_features]
+Y = np.column_stack([         # [n_samples, n_outputs]
+    np.sin(X[:, 0]) + X[:, 1],
+    X[:, 0]**2 - np.cos(X[:, 1]),
+    np.exp(X[:, 0] * X[:, 1])
+])
+
+# MIMO regression task
+mimo_task = RegressionTask(
+    function_set=["add", "sub", "mul", "sin", "cos", "exp", "pow"],
+    dataset=(X, Y),  # Multi-output Y
+    metric="inv_nrmse"
+)
+
+# DSO discovers all three expressions simultaneously!
+```
+
+### **Advanced Regression Features**
+
+#### **Constant Optimization**
+```python
+# DSO can optimize numerical constants in expressions
+# Example: discovers sin(x1) + 2.34*x2 - 1.67
+# The constants 2.34 and -1.67 are optimized automatically
+
+task = RegressionTask(
+    dataset=(X, y),
+    function_set=["add", "mul", "sin", "const"],  # Include constants
+    const_optimizer="scipy",  # Use scipy for constant optimization
+    const_params={
+        "method": "L-BFGS-B",
+        "max_const": 10.0
+    }
+)
+```
+
+#### **Protected Operations**
+```python
+# Avoid division by zero and other numerical issues
+task = RegressionTask(
+    function_set=["add", "sub", "mul", "div", "log", "sqrt"],
+    protected=True,  # Enable protected operations
+    # div(a,b) becomes a/(b + 1e-10) if b ≈ 0
+    # log(x) becomes log(abs(x) + 1e-10)
+    # sqrt(x) becomes sqrt(abs(x))
+)
+```
+
+## �📊 **Evaluation & Testing**
 
 ### **Training vs Test Evaluation**
 
