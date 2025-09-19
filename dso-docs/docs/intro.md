@@ -4,100 +4,51 @@ sidebar_position: 1
 
 # Deep Symbolic Optimization (DSO)
 
-<p align="center">
-    <img src="/img/banner.png" alt="DSO Banner"/>
-</p>
+Deep Symbolic Optimization (DSO) is a framework for automated discovery of interpretable mathematical expressions from data using deep reinforcement learning. DSO generates human-readable mathematical formulas that provide transparency and interpretability compared to traditional black-box machine learning models.
 
 ## Overview
 
-**Deep Symbolic Optimization (DSO)** is a state-of-the-art framework that combines deep reinforcement learning with symbolic regression to automatically discover interpretable mathematical expressions from data. Unlike traditional machine learning approaches that produce black-box models, DSO generates human-readable mathematical formulas that scientists and engineers can understand, verify, and apply.
+DSO employs neural networks to intelligently search the space of mathematical expressions, learning to generate formulas that accurately model input data. The framework is particularly valuable in scientific computing, engineering, and research applications where understanding the underlying mathematical relationships is critical.
 
-## Key Features
+## Key Capabilities
 
-### 🧠 **AI-Driven Discovery**
-DSO uses neural networks to intelligently search the space of mathematical expressions, learning to generate formulas that best fit your data.
+- **Symbolic Regression**: Automated discovery of mathematical expressions from numerical data
+- **Multi-Output Support**: Comprehensive MIMO (Multiple Input Multiple Output) regression capabilities
+- **Interpretable Results**: Generation of explicit mathematical equations rather than black-box models
+- **High Performance**: GPU acceleration and parallel processing support
+- **Production Ready**: Robust APIs with comprehensive testing and validation
 
-### 📊 **Multi-Output Support** 
-Complete support for MIMO (Multiple Input Multiple Output) regression with automatic data variant detection for SISO, MISO, SIMO, and MIMO problems.
+## Performance
 
-### 🔍 **Interpretable Results**
-Get explicit mathematical equations instead of black-box models - perfect for scientific research and engineering applications.
+DSO has demonstrated state-of-the-art performance in symbolic regression:
+- First place in the 2022 SRBench Symbolic Regression Competition
+- Published research in leading AI conferences (ICLR, ICML, NeurIPS)
+- Superior accuracy on standard benchmark datasets
 
-### 🏆 **Proven Performance**
-- **1st place** in the 2022 SRBench Symbolic Regression Competition
-- Published in top AI conferences (ICLR, ICML, NeurIPS)
-- State-of-the-art accuracy on benchmark datasets
+## Algorithm
 
-### ⚡ **Production Ready**
-- GPU acceleration for fast training
-- Parallel processing support
-- Comprehensive testing and validation
-- Well-documented APIs
-
-## How DSO Works
-
-DSO employs a sophisticated reinforcement learning process to discover mathematical expressions:
-
-```mermaid
-graph TD
-    A[Input Data] --> B[RNN Policy Network]
-    B --> C[Generate Expression Candidates]
-    C --> D[Execute & Evaluate Programs]
-    D --> E[Compute Rewards]
-    E --> F[Update Policy via REINFORCE]
-    F --> B
-    D --> G[Best Expression Found]
-    
-    style A fill:#e1f5fe
-    style G fill:#c8e6c9
-    style B fill:#fff3e0
-```
-
-### 1. **Expression Generation**
-A neural network (RNN policy) generates candidate mathematical expressions as sequences of tokens (operators, variables, constants).
-
-### 2. **Expression Evaluation** 
-Each generated expression is executed on your training data to compute a fitness score based on accuracy and complexity.
-
-### 3. **Reinforcement Learning**
-The neural network learns from the fitness scores using the REINFORCE algorithm, gradually improving its ability to generate better expressions.
-
-### 4. **Iterative Refinement**
-This process repeats for thousands of iterations until optimal mathematical formulas are discovered.
-
-## Data Variant Support
-
-DSO now supports multiple data variants with automatic detection:
-
-```mermaid
-graph LR
-    A[Input Data] --> B{Auto-Detect Variant}
-    B --> C[SISO: Single Input/Output]
-    B --> D[MISO: Multi Input/Single Output]
-    B --> E[SIMO: Single Input/Multi Output]
-    B --> F[MIMO: Multi Input/Multi Output]
-    
-    C --> G[Standard DSO]
-    D --> G
-    E --> H[Multi-Output DSO]
-    F --> H
-    
-    style A fill:#e1f5fe
-    style G fill:#c8e6c9
-    style H fill:#f8bbd9
-```
+DSO uses a reinforcement learning approach where a recurrent neural network (RNN) policy generates candidate mathematical expressions as sequences of tokens. Each expression is evaluated on training data to compute a fitness score based on accuracy and complexity. The policy network learns through the REINFORCE algorithm, iteratively improving its ability to generate optimal mathematical formulas.
 
 ## Applications
 
-### 🔍 **Symbolic Regression**
-Discover the underlying mathematical relationships in your data:
-- **Physics**: Find governing equations from experimental data
-- **Engineering**: Derive design equations from simulation results  
-- **Finance**: Identify market relationships and trading formulas
+### Scientific Computing
+- Physics: Derive governing equations from experimental data
+- Chemistry: Discover reaction kinetics and molecular relationships
+- Biology: Model population dynamics and biological processes
 
-**Example**: Given data points from a pendulum, DSO might discover: `ω = √(g/L)`
+### Engineering
+- Control Systems: Design and optimization of control algorithms
+- Signal Processing: Feature extraction and system identification
+- Materials Science: Property prediction and design optimization
 
-### 🎮 **Control Systems**
+### Financial Modeling
+- Risk Assessment: Quantitative models for risk analysis
+- Algorithmic Trading: Discovery of market relationships
+- Economic Modeling: Macroeconomic relationship identification
+
+## Getting Started
+
+To begin using DSO for symbolic regression, proceed to the [Installation](/installation/requirements) section for setup instructions, then review the [Regression Overview](/regression/overview) for core functionality.
 Create interpretable control policies for autonomous systems:
 - **Robotics**: Generate readable control laws instead of black-box neural networks
 - **Aerospace**: Develop flight control algorithms with mathematical guarantees

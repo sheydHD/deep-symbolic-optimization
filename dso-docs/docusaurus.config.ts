@@ -67,7 +67,7 @@ const config: Config = {
     // Replace with your project's social card
     image: "img/docusaurus-social-card.jpg",
     navbar: {
-      title: "DSO",
+      title: "Deep Symbolic Optimization",
       logo: {
         alt: "DSO Logo",
         src: "img/logo.svg",
@@ -77,7 +77,22 @@ const config: Config = {
           type: "docSidebar",
           sidebarId: "tutorialSidebar",
           position: "left",
-          label: "Docs",
+          label: "Documentation",
+        },
+        {
+          to: "/regression/overview",
+          label: "Regression",
+          position: "left",
+        },
+        {
+          to: "/examples/basic-regression",
+          label: "Examples",
+          position: "left",
+        },
+        {
+          to: "/api/core-api",
+          label: "API",
+          position: "left",
         },
         {
           href: "https://github.com/sheydHD/deep-symbolic-optimization",
@@ -90,42 +105,54 @@ const config: Config = {
       style: "dark",
       links: [
         {
-          title: "Docs",
+          title: "Documentation",
           items: [
             {
-              label: "Docs",
-              to: "/",
+              label: "Installation",
+              to: "/installation/requirements",
+            },
+            {
+              label: "Regression",
+              to: "/regression/overview",
+            },
+            {
+              label: "Examples",
+              to: "/examples/basic-regression",
+            },
+            {
+              label: "API Reference",
+              to: "/api/core-api",
             },
           ],
         },
         {
-          title: "Community",
+          title: "Resources",
           items: [
             {
-              label: "Stack Overflow",
-              href: "https://stackoverflow.com/questions/tagged/docusaurus",
-            },
-            {
-              label: "Discord",
-              href: "https://discordapp.com/invite/docusaurus",
-            },
-            {
-              label: "X",
-              href: "https://x.com/docusaurus",
-            },
-          ],
-        },
-        {
-          title: "More",
-          items: [
-            {
-              label: "GitHub",
+              label: "GitHub Repository",
               href: "https://github.com/sheydHD/deep-symbolic-optimization",
+            },
+            {
+              label: "Research Papers",
+              href: "https://github.com/sheydHD/deep-symbolic-optimization#publications",
+            },
+          ],
+        },
+        {
+          title: "Applications",
+          items: [
+            {
+              label: "Scientific Computing",
+              to: "/regression/overview",
+            },
+            {
+              label: "Engineering",
+              to: "/examples/basic-regression",
             },
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Deep Symbolic Optimization. Built with Docusaurus.`,
+      copyright: `© ${new Date().getFullYear()} Deep Symbolic Optimization. Open source framework for symbolic regression.`,
     },
     prism: {
       theme: prismThemes.github,

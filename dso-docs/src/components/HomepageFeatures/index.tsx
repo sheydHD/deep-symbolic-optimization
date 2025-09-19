@@ -11,32 +11,32 @@ type FeatureItem = {
 
 const FeatureList: FeatureItem[] = [
   {
-    title: 'Easy to Use',
+    title: 'Symbolic Regression',
     Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
     description: (
       <>
-        Docusaurus was designed from the ground up to be easily installed and
-        used to get your website up and running quickly.
+        Automatically discover interpretable mathematical expressions from data using 
+        deep reinforcement learning. Generate human-readable formulas instead of black-box models.
       </>
     ),
   },
   {
-    title: 'Focus on What Matters',
+    title: 'Multi-Output Support',
     Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
     description: (
       <>
-        Docusaurus lets you focus on your docs, and we&apos;ll do the chores. Go
-        ahead and move your docs into the <code>docs</code> directory.
+        Comprehensive MIMO capabilities for discovering systems of related mathematical 
+        expressions. Handle SISO, MISO, SIMO, and MIMO regression problems seamlessly.
       </>
     ),
   },
   {
-    title: 'Powered by React',
+    title: 'Production Ready',
     Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
     description: (
       <>
-        Extend or customize your website layout by reusing React. Docusaurus can
-        be extended while reusing the same header and footer.
+        Industrial-grade performance with GPU acceleration, parallel processing, 
+        and robust APIs. Proven accuracy with state-of-the-art results on benchmark datasets.
       </>
     ),
   },
