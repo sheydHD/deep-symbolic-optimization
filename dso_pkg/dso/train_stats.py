@@ -204,21 +204,23 @@ class StatsLogger():
         :param top_samples_per_batch: list containing top solutions on the last batch
         """
         iteration = iteration + 1 # Change from 0- to 1-based indexing
+        
+        # Calculate statistics that are needed for both output_file and summary_writer
+        r_avg_full = np.mean(r_full)
+        l_avg_full = np.mean(l_full)
+        a_ent_full = np.mean(np.apply_along_axis(empirical_entropy, 0, actions_full))
+        n_unique_full = len(set(s_full))
+        n_novel_full = len(set(s_full).difference(s_history))
+        invalid_avg_full = np.mean(invalid_full)
+
+        r_avg_sub = np.mean(r)
+        l_avg_sub = np.mean(l)
+        a_ent_sub = np.mean(np.apply_along_axis(empirical_entropy, 0, actions))
+        n_unique_sub = len(set(s))
+        n_novel_sub = len(set(s).difference(s_history))
+        invalid_avg_sub = np.mean(invalid)
+        
         if self.output_file is not None:
-            r_avg_full = np.mean(r_full)
-
-            l_avg_full = np.mean(l_full)
-            a_ent_full = np.mean(np.apply_along_axis(empirical_entropy, 0, actions_full))
-            n_unique_full = len(set(s_full))
-            n_novel_full = len(set(s_full).difference(s_history))
-            invalid_avg_full = np.mean(invalid_full)
-
-            r_avg_sub = np.mean(r)
-            l_avg_sub = np.mean(l)
-            a_ent_sub = np.mean(np.apply_along_axis(empirical_entropy, 0, actions))
-            n_unique_sub = len(set(s))
-            n_novel_sub = len(set(s).difference(s_history))
-            invalid_avg_sub = np.mean(invalid)
             stats = np.array([[
                 r_best,
                 r_max,
@@ -248,7 +250,7 @@ class StatsLogger():
                               invalid_full
                               ]).transpose()
             df = pd.DataFrame(all_iteration_stats)
-            df.to_csv(self.buffer_all_programs, mode='a', header=False, index=False, line_terminator='\n')
+            df.to_csv(self.buffer_all_programs, mode='a', header=False, index=False, lineterminator='\n')
 
         # Collect stats about used tokens and write to buffer
         if self.save_token_count:

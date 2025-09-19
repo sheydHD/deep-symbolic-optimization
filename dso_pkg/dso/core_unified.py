@@ -71,7 +71,8 @@ class DeepSymbolicOptimizer():
         if "task" in self.config and "dataset" in self.config["task"]:
             dataset = self.config["task"]["dataset"]
             # Check if it's a known MIMO dataset
-            mimo_datasets = ["MIMO-simple", "MIMO-benchmark", "MIMO-easy", "MIMO-modular"]
+            mimo_datasets = ["MIMO-simple", "MIMO-benchmark", "MIMO-easy", "MIMO-modular",
+                           "Hook3D-simple", "Hook3D-isotropic"]
             if any(mimo in str(dataset) for mimo in mimo_datasets):
                 return True
         return False

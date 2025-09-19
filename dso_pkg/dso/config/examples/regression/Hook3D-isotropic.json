@@ -1,0 +1,98 @@
+{
+  "task": {
+    "task_type": "regression",
+    "dataset": "Hook3D-isotropic",
+    "function_set": ["add", "sub", "mul"],
+    "metric": "inv_nrmse",
+    "metric_params": [1.0],
+    "extra_metric_test": null,
+    "extra_metric_test_params": [],
+    "threshold": 1e-8,
+    "protected": false,
+    "reward_noise": 0.0,
+    "reward_noise_type": "r", 
+    "normalize_variance": false,
+    "decision_tree_threshold_set": [],
+    "const_optimizer": "scipy",
+    "const_params": null
+  },
+
+  "training": {
+    "n_samples": 200000,
+    "batch_size": 1000,
+    "epsilon": 0.02,
+    "n_cores_batch": 1,
+    "early_stopping": true
+  },
+
+  "logging": {
+    "save_summary": true,
+    "save_all_iterations": false
+  },
+
+  "policy": {
+    "policy_type": "rnn", 
+    "max_length": 40
+  },
+
+  "policy_optimizer": {
+    "policy_optimizer_type": "pg",
+    "learning_rate": 0.002,
+    "entropy_weight": 0.015,
+    "entropy_gamma": 0.9
+  },
+
+  "experiment": {
+    "seed": 0,
+    "save_path": "results/hook3d_isotropic"
+  },
+
+  "state_manager": {
+    "type": "hierarchical",
+    "observe_parent": true,
+    "observe_sibling": true,
+    "observe_action": false,
+    "observe_dangling": false,
+    "embedding": false,
+    "embedding_size": 8
+  },
+
+  "checkpoint": {
+    "save_freq": null,
+    "save_on_done": false
+  },
+
+  "prior": {
+    "length": {
+      "min_": 4,
+      "max_": 30,
+      "on": true
+    },
+    "repeat": {
+      "tokens": "const",
+      "min_": null,
+      "max_": 5,
+      "on": false
+    },
+    "inverse": {
+      "on": true
+    },
+    "trig": {
+      "on": false
+    },
+    "const": {
+      "on": false
+    },
+    "no_inputs": {
+      "on": false
+    },
+    "uniform_arity": {
+      "on": true
+    },
+    "soft_length": {
+      "loc": 15,
+      "scale": 8,
+      "on": true
+    }
+  }
+}

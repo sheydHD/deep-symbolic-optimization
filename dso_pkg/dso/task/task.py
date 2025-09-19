@@ -227,7 +227,8 @@ def make_task(task_type, **config_task):
     elif task_type == "regression":
         # Auto-detect if this is a MIMO case and use appropriate task class
         dataset = config_task.get('dataset', '')
-        mimo_datasets = ["MIMO-simple", "MIMO-benchmark", "MIMO-easy", "MIMO-modular"]
+        mimo_datasets = ["MIMO-simple", "MIMO-benchmark", "MIMO-easy", "MIMO-modular", 
+                        "Hook3D-simple", "Hook3D-isotropic", "Simple-MIMO"]
         is_mimo = any(mimo in str(dataset) for mimo in mimo_datasets)
         
         if is_mimo:
