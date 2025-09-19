@@ -225,8 +225,17 @@ def make_task(task_type, **config_task):
         from dso.task.binding.binding import BindingTask
         task_class = BindingTask
     elif task_type == "regression":
-        from dso.task.regression.regression import RegressionTask
-        task_class = RegressionTask
+        # Auto-detect if this is a MIMO case and use appropriate task class
+        dataset = config_task.get('dataset', '')
+        mimo_datasets = ["MIMO-simple", "MIMO-benchmark", "MIMO-easy", "MIMO-modular"]
+        is_mimo = any(mimo in str(dataset) for mimo in mimo_datasets)
+        
+        if is_mimo:
+            from dso.task.regression.modular_regression import ModularRegressionTask
+            task_class = ModularRegressionTask
+        else:
+            from dso.task.regression.regression import RegressionTask
+            task_class = RegressionTask
     elif task_type == "control":
         from dso.task.control.control import ControlTask
         task_class = ControlTask
