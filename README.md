@@ -31,18 +31,25 @@ This repository contains code supporting the following publications:
 
 
 
-# Prerequisite: Install SWIG
+# Prerequisites
 
-Before running the setup, you must install **SWIG** (Simplified Wrapper and Interface Generator), which is required to build Box2D Python bindings used by some environments.
+Before running the setup, you must install the following dependencies:
 
-## Linux
+## Python 3.11
+DSO requires Python 3.11. Using a different version will cause the setup to fail.
+- [Download Python 3.11](https://www.python.org/downloads/release/python-3110/)
+
+## SWIG (Simplified Wrapper and Interface Generator)
+SWIG is required to build Box2D Python bindings used by some environments.
+
+### Linux
 Install SWIG using your package manager:
 
 ```sh
 sudo apt-get update && sudo apt-get install swig
 ```
 
-## Windows
+### Windows
 1. Download the latest SWIG release from: https://github.com/swig/swig/releases
 2. Extract the archive to a folder (e.g., `C:\swigwin`)
 3. Add the folder containing `swig.exe` to your system PATH:
@@ -52,11 +59,30 @@ sudo apt-get update && sudo apt-get install swig
 
 You can verify the installation by running `swig -version` in your terminal.
 
+## C++ Build Tools
+C++ build tools are required to compile native extensions.
+
+### Linux
+Install build tools using your package manager:
+
+```sh
+sudo apt-get update && sudo apt-get install build-essential
+```
+
+### Windows
+Install Microsoft C++ Build Tools:
+1. Download and install from https://visualstudio.microsoft.com/visual-cpp-build-tools/
+2. During installation, select "Desktop development with C++"
+
+You can verify the installation by running `cl.exe` in your terminal (Windows) or `g++ --version` (Linux).
+
 # Windows Users: Special Note
 
 If you are installing on **Windows**, you may see an error about `tensorflow-io-gcs-filesystem` not being available for your platform. This package is not required on Windows and the setup script will now automatically skip it. If you see a warning or error about this package, you can safely ignore it.
 
 # Installation
+
+**Important:** Make sure you have installed all prerequisites (Python 3.11, SWIG, and C++ build tools) as described in the Prerequisites section above before proceeding.
 
 1. Clone the repo:  
    `git clone https://github.com/your-org/dso.git && cd dso`

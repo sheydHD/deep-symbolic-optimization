@@ -24,10 +24,35 @@ DSO discovers **exact mathematical formulas** from data instead of black-box mod
 ## Prerequisites
 
 Before starting, ensure you have:
-- **Python 3.10 or 3.11** (check with `python --version`)
+- **Python 3.11** (DSO requires Python 3.11 specifically)
 - **Git** for cloning the repository
-- **GCC/Clang** toolchain for compiling Cython extensions
+- **SWIG** (Simplified Wrapper and Interface Generator) for Box2D bindings
+- **C++ Build Tools** for compiling native extensions:
+  - **Linux**: `build-essential` package (GCC/Clang toolchain)
+  - **Windows**: Microsoft C++ Build Tools (Visual Studio Build Tools)
 - (Optional) **CUDA-enabled GPU** for faster training
+
+### Installing Prerequisites
+
+#### Linux
+```bash
+# Install Python 3.11
+sudo apt-get update
+sudo apt-get install python3.11
+
+# Install build tools
+sudo apt-get install build-essential
+
+# Install SWIG
+sudo apt-get install swig
+```
+
+#### Windows
+1. Download and install Python 3.11 from [python.org](https://www.python.org/downloads/release/python-3110/)
+2. Download and install Microsoft C++ Build Tools from [visualstudio.microsoft.com](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+   - During installation, select "Desktop development with C++"
+3. Download SWIG from [swig.org](http://swig.org/download.html) or GitHub releases
+   - Extract to a folder and add to your system PATH
 
 ## Step 1: Installation & Setup
 

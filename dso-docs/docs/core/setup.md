@@ -15,6 +15,9 @@ The simplest way to get started with DSO:
 git clone https://github.com/your-org/dso.git
 cd dso
 
+# IMPORTANT: Make sure all prerequisites are installed before proceeding
+# See "Prerequisites Installation" section above
+
 # Run modern automated setup
 ./main.sh modern setup
 
@@ -33,6 +36,9 @@ For more control over the installation process:
 # Clone repository
 git clone https://github.com/your-org/dso.git
 cd dso
+
+# IMPORTANT: Make sure all prerequisites are installed before proceeding
+# See "Prerequisites Installation" section above
 
 # Create virtual environment using uv
 uv venv .venv
@@ -57,6 +63,9 @@ For contributors and advanced users:
 git clone https://github.com/your-org/dso.git
 cd dso
 
+# IMPORTANT: Make sure all prerequisites are installed before proceeding
+# See "Prerequisites Installation" section above
+
 # Install development dependencies
 uv venv .venv
 source .venv/bin/activate
@@ -72,7 +81,7 @@ python tools/python/run.py test -v
 ## 📋 **System Requirements**
 
 ### **Minimum Requirements**
-- **Python**: 3.10 or 3.11
+- **Python**: 3.11 (DSO requires Python 3.11 specifically)
 - **RAM**: 4 GB minimum, 8 GB recommended
 - **Storage**: 2 GB for installation + datasets
 - **OS**: Linux, macOS, or Windows
@@ -82,6 +91,81 @@ python tools/python/run.py test -v
 - **RAM**: 16 GB or more for large problems
 - **CPU**: Multi-core processor (4+ cores recommended)
 - **Storage**: SSD for faster I/O
+
+## 🔧 **Prerequisites Installation**
+
+Before running the DSO setup, you must install the following dependencies:
+
+### **1. Python 3.11**
+DSO requires Python 3.11. Using a different version will cause the setup to fail.
+
+#### Linux
+```bash
+# Ubuntu/Debian
+sudo apt-get update
+sudo apt-get install python3.11 python3.11-venv python3.11-dev
+
+# Verify installation
+python3.11 --version
+```
+
+#### Windows
+1. Download Python 3.11 from [python.org](https://www.python.org/downloads/release/python-3110/)
+2. During installation, make sure to check "Add Python to PATH"
+
+### **2. SWIG (Simplified Wrapper and Interface Generator)**
+Required for Box2D Python bindings used by some environments.
+
+#### Linux
+```bash
+# Ubuntu/Debian
+sudo apt-get install swig
+
+# Verify installation
+swig -version
+```
+
+#### Windows
+1. Download the latest SWIG release from [swig.org](http://swig.org/download.html) or [GitHub releases](https://github.com/swig/swig/releases)
+2. Extract the archive to a folder (e.g., `C:\swigwin`)
+3. Add the folder containing `swig.exe` to your system PATH:
+   - Open System Properties → Environment Variables
+   - Edit the `Path` variable and add the SWIG folder path
+   - Click OK and restart your terminal
+
+### **3. C++ Build Tools**
+Required to compile native extensions.
+
+#### Linux
+```bash
+# Ubuntu/Debian
+sudo apt-get install build-essential
+
+# Verify installation
+gcc --version
+```
+
+#### Windows
+1. Download and install Microsoft C++ Build Tools from [visualstudio.microsoft.com](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+2. During installation, select "Desktop development with C++"
+3. Verify installation by running `cl.exe` in your terminal
+
+### **Verifying Prerequisites**
+Before proceeding with DSO setup, verify all prerequisites are installed:
+
+```bash
+# Check Python version (must be 3.11)
+python --version
+
+# Check SWIG
+swig -version
+
+# Check C++ compiler
+# Linux/macOS:
+gcc --version
+# Windows:
+cl.exe
+```
 
 ### **Dependencies**
 
@@ -115,6 +199,16 @@ pre-commit >= 2.15.0
 mkdocs >= 1.4.0
 mkdocs-material >= 8.0.0
 ```
+
+### **Build Requirements**
+
+In addition to the Python dependencies listed above, DSO requires system-level tools for building native extensions:
+
+- **C++ Compiler**: Required for compiling Cython extensions
+- **SWIG**: Required for Box2D Python bindings
+- **Python Development Headers**: Required for building native extensions
+
+These are not Python packages and must be installed separately as described in the "Prerequisites Installation" section above.
 
 ## 🚀 **Quick Verification**
 

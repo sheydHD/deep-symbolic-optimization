@@ -64,3 +64,4 @@ gha-creds-*.json
 
 # Cursor
 .cursorignore
+.obsidian
