@@ -12,13 +12,11 @@
     "reward_noise": 0.0,
     "reward_noise_type": "r", 
     "normalize_variance": false,
-    "decision_tree_threshold_set": [],
-    "const_optimizer": "scipy",
-    "const_params": null
+    "decision_tree_threshold_set": []
   },
 
   "training": {
-    "n_samples": 200000,
+    "n_samples": 8000000,
     "batch_size": 1000,
     "epsilon": 0.02,
     "n_cores_batch": 1,
@@ -26,20 +24,14 @@
   },
 
   "logging": {
-    "save_summary": true,
-    "save_all_iterations": false
-  },
-
-  "policy": {
-    "policy_type": "rnn", 
-    "max_length": 40
+    "save_summary": true
   },
 
   "policy_optimizer": {
     "policy_optimizer_type": "pg",
-    "learning_rate": 0.002,
-    "entropy_weight": 0.015,
-    "entropy_gamma": 0.9
+    "learning_rate": 0.0025,
+    "entropy_weight": 0.03,
+    "entropy_gamma": 0.7
   },
 
   "experiment": {
@@ -57,42 +49,40 @@
     "embedding_size": 8
   },
 
-  "checkpoint": {
-    "save_freq": null,
-    "save_on_done": false
-  },
-
   "prior": {
     "length": {
       "min_": 4,
-      "max_": 30,
+      "max_": 64,
       "on": true
     },
     "repeat": {
       "tokens": "const",
       "min_": null,
-      "max_": 5,
-      "on": false
+      "max_": 3,
+      "on": true
     },
     "inverse": {
       "on": true
     },
     "trig": {
-      "on": false
+      "on": true
     },
     "const": {
-      "on": false
+      "on": true
     },
     "no_inputs": {
-      "on": false
+      "on": true
     },
     "uniform_arity": {
       "on": true
     },
     "soft_length": {
-      "loc": 15,
-      "scale": 8,
+      "loc": 10,
+      "scale": 5,
       "on": true
+    },
+    "domain_range": {
+      "on": false
     }
   }
 }

@@ -12,6 +12,7 @@ THIS_FILE = Path(__file__).resolve()
 PROJECT   = THIS_FILE.parents[3]          # repo root
 TOOLS_DIR = PROJECT / "tools" / "python"
 
+
 def python_exe() -> str:
     """Return path to preferred python (project .venv if present)."""
     if sys.platform == "win32":
@@ -20,9 +21,10 @@ def python_exe() -> str:
         cand = PROJECT / ".venv" / "bin" / "python"
     return str(cand) if cand.exists() else sys.executable
 
+
 def run(cmd: list[str], **kw) -> None:
     """Execute command with live output; raise on failure."""
-    print("➜", *cmd, flush=True)
+    print(">", *cmd, flush=True)
     subprocess.run(cmd, check=True, **kw)
 
 __all__ = [

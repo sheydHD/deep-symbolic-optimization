@@ -62,8 +62,11 @@ def cmd_bench_mimo(ns: argparse.Namespace) -> None:
         ns.config = "dso_pkg/dso/config/examples/regression/MIMO-benchmark.json"
         print(f"Using default MIMO config: {ns.config}")
     
-    print("MIMO: Multiple Inputs → Multiple Outputs")
-    print("Dataset: MIMO-benchmark (3 inputs → 3 outputs)")
+    # Get number of iterations (default 100)
+    iterations = getattr(ns, 'iterations', 100)
+    
+    print("MIMO: Multiple Inputs -> Multiple Outputs")
+    print("Dataset: MIMO-benchmark (3 inputs -> 3 outputs)")
     print("Expressions: [x1*x2, sin(x3), x1+x2*x3]")
     print("="*60)
     
@@ -113,16 +116,16 @@ try:
     
     # Verify initialization
     from dso.program import Program
-    print(f'\\n✓ Initialized with {{Program.library.L}} tokens')
-    print(f'✓ Input shape: {{Program.task.X_train.shape}}')
-    print(f'✓ Output shape: {{Program.task.y_train.shape}}')
+    print(f'[OK] Initialized with {{Program.library.L}} tokens')
+    print(f'[OK] Input shape: {{Program.task.X_train.shape}}')
+    print(f'[OK] Output shape: {{Program.task.y_train.shape}}')
     
     # Run training
-    print('\\nRunning training steps...')
-    for step in range(10):
+    print('Running training steps...')
+    for step in range({iterations}):  # Use parameterized iterations
         result = dso.train_one_step()
         if result is not None:
-            print(f'\\nTraining completed at step {{step+1}}!')
+            print(f'Training completed at step {{step+1}}!')
             if 'r' in result:
                 print(f'Best reward: {{result["r"]:.6f}}')
             if 'expression' in result:
@@ -132,10 +135,10 @@ try:
             if hasattr(dso.trainer, 'p_r_best') and dso.trainer.p_r_best:
                 print(f'  Step {{step+1}}: Best reward = {{dso.trainer.p_r_best.r:.6f}}')
     
-    print('\\n✅ MIMO BENCHMARK COMPLETED SUCCESSFULLY!')
+    print('[MIMO BENCHMARK COMPLETED SUCCESSFULLY]')
     
 except Exception as e:
-    print(f'\\n❌ MIMO BENCHMARK FAILED: {{e}}')
+    print(f'[MIMO BENCHMARK FAILED]: {{e}}')
     import traceback
     traceback.print_exc()
     sys.exit(1)
@@ -224,6 +227,7 @@ miso_p.add_argument("--benchmark", help="Optional benchmark selector")
 # MIMO benchmark command
 mimo_p = sub.add_parser("bench-mimo", help="Run MIMO benchmark")
 mimo_p.add_argument("config", nargs="?", help="Path to config JSON (optional)")
+mimo_p.add_argument("--iterations", type=int, default=100, help="Number of training iterations (default: 100)")
 
 # Menu command
 menu_p = sub.add_parser("menu", help="Interactive menu")
