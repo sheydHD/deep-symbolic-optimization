@@ -29,6 +29,33 @@ This repository contains code supporting the following publications:
 10. Glatt et al. 2022 **Deep Symbolic Optimization for Electric Component Sizing in Fixed Topology Power Converters** _AI for Design and Manufacturing (ADAM) @ AAAI 2022._ [Paper](https://openreview.net/forum?id=u_ghY9PnAyZ)
 11. Pettit et al. 2025 **DisCo-DSO: Coupling Discrete and Continuous Optimization for Efficient Generative Design in Hybrid Spaces.** _AAAI 2025_ [Paper](https://arxiv.org/pdf/2412.11051) [Blog Post](https://landajuela.github.io/discrete_continuous_autoregressive/)
 
+
+
+# Prerequisite: Install SWIG
+
+Before running the setup, you must install **SWIG** (Simplified Wrapper and Interface Generator), which is required to build Box2D Python bindings used by some environments.
+
+## Linux
+Install SWIG using your package manager:
+
+```sh
+sudo apt-get update && sudo apt-get install swig
+```
+
+## Windows
+1. Download the latest SWIG release from: https://github.com/swig/swig/releases
+2. Extract the archive to a folder (e.g., `C:\swigwin`)
+3. Add the folder containing `swig.exe` to your system PATH:
+  - Open System Properties → Environment Variables
+  - Edit the `Path` variable and add the SWIG folder path
+  - Click OK and restart your terminal
+
+You can verify the installation by running `swig -version` in your terminal.
+
+# Windows Users: Special Note
+
+If you are installing on **Windows**, you may see an error about `tensorflow-io-gcs-filesystem` not being available for your platform. This package is not required on Windows and the setup script will now automatically skip it. If you see a warning or error about this package, you can safely ignore it.
+
 # Installation
 
 1. Clone the repo:  
