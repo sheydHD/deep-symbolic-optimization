@@ -144,57 +144,63 @@ except Exception as e:
 
 def interactive_menu() -> None:
     """Interactive menu for DSO operations."""
+    pre_req_msg = """
+IMPORTANT: Before running setup, ensure the following are installed and added to your PATH:
+
+- Python 3.11 (https://www.python.org/downloads/release/python-3110/)
+- SWIG (Simplified Wrapper and Interface Generator)
+    - Linux:   sudo apt-get update && sudo apt-get install swig
+    - Windows: Download swig from the internet, extract, and add swig.exe to your PATH
+- Microsoft C++ Build Tools (Windows only)
+    - Download and install from https://visualstudio.microsoft.com/visual-cpp-build-tools/
+    - During install, select "Desktop development with C++"
+
+You can verify installation by running:
+- python --version
+- swig -version
+- (Windows) cl.exe (should print Microsoft C/C++ compiler info)
+"""
+    print(pre_req_msg)
     while True:
-        print("\n" + "="*50)
+        print("==================================================")
         print("DEEP SYMBOLIC OPTIMIZATION - MAIN MENU")
-        print("="*50)
+        print("==================================================")
         print("  1) Setup environment")
         print("  2) Run tests (including MIMO)")
         print("  3) Run MISO benchmark (Multiple Input, Single Output)")
         print("  4) Run MIMO benchmark (Multiple Input, Multiple Output)")
         print("  5) Quit")
-        print("-"*50)
-        
+        print("--------------------------------------------------")
         choice = input("Select option [1-5]: ").strip()
-        
         if choice == "1":
             print("\n🔧 Setting up environment...")
             cmd_setup(argparse.Namespace(forward=[]))
-            
         elif choice == "2":
             print("\n🧪 Running all tests...")
             cmd_test(argparse.Namespace(forward=[]))
-            
         elif choice == "3":
             print("\n📊 MISO Benchmark")
             print("Examples of MISO problems:")
             print("  - Nguyen-1: x^3 + x^2 + x")
             print("  - Nguyen-2: x^4 + x^3 + x^2 + x")
             print("  - Custom: Your own multi-variable expression")
-            
             cfg = input("\nConfig path (or Enter for default): ").strip()
             if not cfg:
                 cfg = "dso_pkg/dso/config/examples/regression/Nguyen-2.json"
             cmd_bench_miso(argparse.Namespace(config=cfg))
-            
         elif choice == "4":
             print("\n📊 MIMO Benchmark")
             print("Examples of MIMO problems:")
             print("  - MIMO-simple: 2 inputs → 2 outputs")
             print("  - MIMO-benchmark: 3 inputs → 3 outputs")
             print("  - MIMO-easy: Simple 2x2 case")
-            
             cfg = input("\nConfig path (or Enter for default): ").strip()
             if not cfg:
                 cfg = "dso_pkg/dso/config/examples/regression/MIMO-benchmark.json"
             cmd_bench_mimo(argparse.Namespace(config=cfg))
-            
         elif choice == "5":
             print("\n👋 Goodbye!")
             return
-            
-        else:
-            print("\n❌ Invalid option. Please select 1-5.")
 
 # --------------------------------------------------------------------------- CLI parser
 parser = argparse.ArgumentParser(

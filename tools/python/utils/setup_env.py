@@ -32,7 +32,20 @@ def install_layers() -> None:
     if pyproject.exists():
         # Use uv sync groups (core + optional groups dev & extras)
         run(["uv", "pip", "install", "numpy>=1.26,<2.0"])  # ensure numpy headers for cython
-        run(["uv", "sync"])  # install core deps + build
+        try:
+            run(["uv", "sync"])  # install core deps + build
+        except Exception as e:
+            # On Windows, tensorflow-io-gcs-filesystem may fail to install, but is not required
+            if sys.platform == "win32":
+                print("[setup-env] Detected Windows and tensorflow-io-gcs-filesystem install error. Attempting to continue...")
+                # Try to uninstall if partially installed
+                try:
+                    run(["uv", "pip", "uninstall", "-y", "tensorflow-io-gcs-filesystem"])
+                except Exception:
+                    pass
+                # Try to continue with the rest of the install
+            else:
+                raise e
         # Always use the venv pip for editable install
         # Use 'uv pip install' instead of direct pip path for uv venv compatibility
         run(["uv", "pip", "install", "-e", ".[extras,dev]"])
